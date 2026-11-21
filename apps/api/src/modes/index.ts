@@ -140,19 +140,36 @@ Never infer sensitive traits, vulnerabilities, attraction, willingness to date, 
 Even one concrete photo observation or readable post can support a useful result. Generate fewer, qualified suggestions when evidence is limited; missing bio text or explicit interests alone is never a reason for insufficient. Use captions as written context and photos as visual inspiration. Return insufficient only when the supplied evidence contains no usable conversation detail, and blocked for ineligible requests; then result must be null and explain briefly in reason.
 For ready: result must match the mode schema, reason is empty, and missingInformation is empty.
 Moodboard: exactly 6 tiles: 3 image tiles, 1 typography, 1 quote or paraphrase, 1 palette. Select allowed IDs only.
+The board is laid out as a collage poster: its title is the cover headline (1–4 punchy words, no full stop), the typography tile's title is a 2–5 word phrase, and image tile titles are 1–3 word labels.
 Each tile explains the source connection. Image tiles need an assetId; other tiles use null. Use diverse assets.
 quoteText must be an EXACT substring of referenced evidence, at most 200 characters, or null for a paraphrase.
 Short captions, natural language, no HTML, URLs, or exact addresses/schedules. No unsupported certainty.
 Draft labels are short plain-English titles such as "Connection note", never identifiers like connection_note.
 Only use the supplied music and image catalogues. Aesthetic tags and music express creative interpretation, not a factual identity.`;
 
+// Photo evidence IDs embed a UUID, and models garble long IDs when copying them (splicing
+// two together). The model is shown short stand-ins, which are mapped back before checks.
+function shortIds(input: AnalysisRequest) {
+  const taken = new Set(input.profile.evidence.map((e) => e.id));
+  const short = new Map<string, string>();
+  let next = 1;
+  for (const { id } of input.profile.evidence) {
+    if (id.length <= 12) continue;
+    let alias = `p${next++}`;
+    while (taken.has(alias)) alias = `p${next++}`;
+    taken.add(alias);
+    short.set(id, alias);
+  }
+  return short;
+}
 export function promptFor(mode: ServerMode, input: AnalysisRequest) {
+  const short = shortIds(input);
   return [
     { role: 'system' as const, content: `${sharedInstructions}\n${mode.instructions}` },
     {
       role: 'user' as const,
       content: JSON.stringify({
-        evidence: input.profile.evidence,
+        evidence: input.profile.evidence.map((e) => ({ ...e, id: short.get(e.id) ?? e.id })),
         eligibilitySignals: input.profile.eligibilitySignals,
         userContext: input.userContext,
         preferences: input.modeConfig,
@@ -176,6 +193,7 @@ export function validateOutcome(mode: ServerMode, raw: unknown, input: AnalysisR
     input.profile.evidence.filter((e) => e.sourceKind === 'visual').map((e) => e.id),
   );
   const userIds = new Set(input.userContext.map((u) => u.id));
+  const full = new Map([...shortIds(input)].map(([id, alias]) => [alias, id]));
   const errors: string[] = [];
   function walk(value: unknown) {
     if (typeof value === 'string') {
@@ -189,6 +207,8 @@ export function validateOutcome(mode: ServerMode, raw: unknown, input: AnalysisR
       return;
     }
     const obj = value as Record<string, unknown>;
+    if (Array.isArray(obj.evidenceIds))
+      obj.evidenceIds = obj.evidenceIds.map((id) => full.get(id as string) ?? id);
     // Models sometimes file the user's own context IDs (CV chunks) under evidenceIds.
     // Refile them instead of rejecting; a claim left with no profile evidence still fails.
     if (Array.isArray(obj.evidenceIds)) {

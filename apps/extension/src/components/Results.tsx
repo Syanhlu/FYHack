@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import { Check, Copy, Music2, Pause, Play, Quote, Sparkles } from 'lucide-react';
+import { Check, Copy, Music2, Pause, Play, Sparkles } from 'lucide-react';
 import { getAsset, getSong, palettes } from '@profile-lens/catalogues';
 import type {
   CitedText,
@@ -165,53 +165,110 @@ function ImageTile({ assetId }: { assetId: string }) {
     </div>
   );
 }
+// Laid out as a collage poster (magazine-cover style): one hero image under an oversized
+// headline, with inset pictures, cut-paper word strips, a quote bubble and tag stickers.
+const posterVariants = ['cover', 'editorial', 'zine'] as const;
 export function MoodboardView({ board, evidence }: { board: Moodboard; evidence: Evidence[] }) {
   const palette = palettes[board.paletteId as keyof typeof palettes] ?? palettes.studio;
+  const [hero, ...insets] = board.tiles.filter((tile) => tile.kind === 'image');
+  const typography = board.tiles.find((tile) => tile.kind === 'typography');
+  const quote = board.tiles.find((tile) => tile.kind === 'quote');
+  const swatch = board.tiles.find((tile) => tile.kind === 'palette');
+  // The same board always gets the same layout.
+  const variant =
+    posterVariants[[...board.title].reduce((sum, char) => sum + char.charCodeAt(0), 0) % 3];
+  const size = board.title.length <= 14 ? 'xl' : board.title.length <= 30 ? 'lg' : 'md';
+  // Pair up words so each cut-paper strip holds a short phrase.
+  const strips = (typography?.title.split(/\s+/) ?? []).reduce<string[]>((lines, word, index) => {
+    if (index % 2) lines[lines.length - 1] += ` ${word}`;
+    else lines.push(word);
+    return lines;
+  }, []);
   return (
     <section className="board-section" aria-label="Moodboard">
       <div className="section-heading">
-        <div>
-          <span className="eyebrow">A little inspiration</span>
-          <h2>{board.title}</h2>
-        </div>
+        <span className="eyebrow">A little inspiration</span>
         <Sparkles size={18} />
       </div>
-      <p className="hint">
-        Creative interpretation · {board.aestheticTags.map(readable).join(' / ')}
-      </p>
       <div
-        className="moodboard"
+        className={`moodboard poster poster-${variant}`}
         style={
           {
             '--board-ink': palette.colours[0],
-            '--board-paper': palette.colours[3],
+            '--board-mid': palette.colours[1],
             '--board-accent': palette.colours[2],
+            '--board-paper': palette.colours[3],
           } as CSSProperties
         }
       >
-        {board.tiles.map((tile) => (
-          <article key={tile.id} className={`mood-tile tile-${tile.kind}`}>
-            {tile.kind === 'image' && tile.assetId && <ImageTile assetId={tile.assetId} />}
-            {tile.kind === 'quote' && <Quote className="quote-mark" size={24} />}
-            {tile.kind === 'palette' && (
-              <div className="swatches">
-                {palette.colours.map((colour) => (
-                  <span key={colour} style={{ backgroundColor: colour }} title={colour} />
-                ))}
-              </div>
-            )}
-            <div className="tile-copy">
-              <h3>{tile.title}</h3>
-              {tile.quoteText ? <p>“{tile.quoteText}”</p> : <p>{tile.caption}</p>}
-              <details className="tile-why">
-                <summary>Why this?</summary>
-                <p>{tile.rationale}</p>
-                <Sources ids={tile.evidenceIds} evidence={evidence} />
-              </details>
+        <div className="poster-masthead" aria-hidden="true">
+          <span>Profile Lens</span>
+          <span>{palette.name}</span>
+          <span>{new Date().toLocaleDateString('en-GB')}</span>
+        </div>
+        <div className="poster-stage">
+          {hero && (
+            <article className="mood-tile poster-hero">
+              {hero.assetId && <ImageTile assetId={hero.assetId} />}
+              <span className="poster-label">{hero.title}</span>
+            </article>
+          )}
+          <h2 className={`poster-headline headline-${size}`}>{board.title}</h2>
+          {insets.map((tile, index) => (
+            <article key={tile.id} className={`mood-tile poster-inset inset-${index + 1}`}>
+              {tile.assetId && <ImageTile assetId={tile.assetId} />}
+              <span className="poster-label">{tile.title}</span>
+            </article>
+          ))}
+          {typography && (
+            <article className="mood-tile poster-strips">
+              {strips.map((line, index) => (
+                <span key={index}>{line}</span>
+              ))}
+            </article>
+          )}
+          {quote && (
+            <article className="mood-tile poster-quote">
+              <p>{quote.quoteText ? `“${quote.quoteText}”` : quote.caption}</p>
+            </article>
+          )}
+          <ul className="poster-stickers" aria-label="Creative interpretation">
+            {board.aestheticTags.slice(0, 3).map((tag) => (
+              <li key={tag}>★ {readable(tag)}</li>
+            ))}
+          </ul>
+          {[1, 2, 3].map((star) => (
+            <span key={star} className={`poster-star star-${star}`} aria-hidden="true">
+              ✦
+            </span>
+          ))}
+        </div>
+        {swatch && (
+          <article className="mood-tile poster-footer">
+            <div className="swatches">
+              {palette.colours.map((colour) => (
+                <span key={colour} style={{ backgroundColor: colour }} title={colour} />
+              ))}
             </div>
+            <p>
+              <strong>{swatch.title}</strong> · {swatch.caption}
+            </p>
           </article>
-        ))}
+        )}
       </div>
+      <details className="board-notes">
+        <summary>
+          Why these? <span>{board.tiles.length}</span>
+        </summary>
+        {board.tiles.map((tile) => (
+          <div key={tile.id}>
+            <h3>{tile.title}</h3>
+            <p>{tile.caption}</p>
+            <p className="muted">{tile.rationale}</p>
+            <Sources ids={tile.evidenceIds} evidence={evidence} />
+          </div>
+        ))}
+      </details>
     </section>
   );
 }

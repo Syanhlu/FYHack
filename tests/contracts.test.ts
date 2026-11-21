@@ -7,7 +7,7 @@ import {
   profileSchema,
   type OutreachResult,
 } from '../packages/contracts/src';
-import { serverModes, validateOutcome } from '../apps/api/src/modes';
+import { promptFor, serverModes, validateOutcome } from '../apps/api/src/modes';
 import { formatForMode } from '../apps/api/src/providers/live';
 import { assets, songs } from '../packages/catalogues/src';
 import { existsSync } from 'node:fs';
@@ -135,6 +135,26 @@ describe('visual evidence provenance', () => {
       observationKind: 'scene',
     };
     expect(requestSchema.safeParse(input).success).toBe(true);
+  });
+  it('shows the model short stand-ins for long evidence IDs and maps them back', () => {
+    const input = request();
+    const longId = `v${crypto.randomUUID()}`;
+    input.profile.evidence.push({
+      id: longId,
+      text: 'A bicycle leans against a bookshop window.',
+      sourceKind: 'visual',
+      attribution: 'visual_observation',
+      sourceImageId: crypto.randomUUID(),
+      observationKind: 'scene',
+      sectionLabel: 'Photo 1',
+    });
+    const shown = JSON.parse(promptFor(serverModes.outreach, input)[1]!.content).evidence;
+    expect(shown.at(-1).id).toBe('p1');
+    expect(JSON.stringify(shown)).not.toContain(longId);
+    const raw = output('outreach');
+    (raw.result as OutreachResult).summary.evidenceIds = ['e1', 'p1'];
+    const checked = validateOutcome(serverModes.outreach, raw, input).result as OutreachResult;
+    expect(checked.summary.evidenceIds).toEqual(['e1', longId]);
   });
   it('does not turn a visual observation into an exact quote by the owner', () => {
     const input = request();
