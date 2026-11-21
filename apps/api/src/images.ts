@@ -128,15 +128,22 @@ export function registerImageRoutes(
       return reply
         .code(409)
         .send(error('COST_LIMIT', 'The configured photo-run budget has been reached.'));
-    if (inFlight || Date.now() - lastCall < (options.intervalMs ?? IMAGE_BATCH_INTERVAL_MS))
+    const cooldownMs = (options.intervalMs ?? IMAGE_BATCH_INTERVAL_MS) - (Date.now() - lastCall);
+    if (inFlight || cooldownMs > 0) {
+      const retryAfterMs = Math.ceil(Math.max(inFlight ? 5000 : 1000, cooldownMs));
       return reply
         .code(429)
-        .send(
-          error(
-            'RATE_LIMITED',
-            'Photo analysis is busy. Completed observations are still available.',
-          ),
-        );
+        .header('Retry-After', String(Math.ceil(retryAfterMs / 1000)))
+        .send({
+          error: {
+            // No provider call or reservation has happened for this batch. Only this
+            // distinct response is safe for the extension to retry automatically.
+            code: 'PHOTO_ANALYSIS_BUSY',
+            message: 'Photo analysis is busy. This batch can be retried shortly.',
+            retryAfterMs,
+          },
+        });
+    }
     inFlight = true;
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;

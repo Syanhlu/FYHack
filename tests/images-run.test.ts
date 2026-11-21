@@ -80,9 +80,150 @@ function setup(total: number) {
     wait: vi.fn(async (_ms: number, signal: AbortSignal) => signal.throwIfAborted()),
     crop: vi.fn(async () => ({ dataUrl: 'cropped-image-only', thumbnail: 'small-thumbnail' })),
   };
-  return { snapshot, screenshot, batches, operations, sendMessage };
+  return { snapshot, screenshot, batches, operations, sendMessage, fetch };
 }
 describe('automatic photo runs', () => {
+  it('buffers the same batch through busy responses, then continues without recapturing photos', async () => {
+    const { snapshot, screenshot, batches, operations, fetch } = setup(4);
+    const original = fetch.getMockImplementation()!;
+    const attempts: string[] = [];
+    fetch.mockImplementation(async (url, init) => {
+      if (url.endsWith('/analyse-images')) {
+        attempts.push(String(init?.body));
+        if (attempts.length <= 2)
+          return Response.json(
+            {
+              error: {
+                code: 'PHOTO_ANALYSIS_BUSY',
+                message: 'Busy',
+                retryAfterMs: attempts.length === 1 ? 12000 : 2000,
+              },
+            },
+            { status: 429 },
+          );
+      }
+      return original(url, init);
+    });
+    const receive = vi.fn();
+    const progress = vi.fn();
+    const message = await analyseProfileImages(
+      snapshot,
+      'token',
+      new AbortController().signal,
+      receive,
+      operations,
+      progress,
+    );
+    expect(attempts[0]).toBe(attempts[1]);
+    expect(attempts[1]).toBe(attempts[2]);
+    expect(attempts).toHaveLength(4);
+    expect(operations.wait.mock.calls.some(([ms]) => ms === 12000)).toBe(true);
+    expect(operations.wait.mock.calls.some(([ms]) => ms === 10000)).toBe(true);
+    expect(screenshot).toHaveBeenCalledTimes(4);
+    expect(batches.flatMap((batch) => batch.images)).toHaveLength(4);
+    expect(receive.mock.calls.map(([, count]) => count)).toEqual([3, 4]);
+    expect(
+      progress.mock.calls.some(([text]) =>
+        text.includes('Keeping 3 captured photos and retrying in 12s'),
+      ),
+    ).toBe(true);
+    expect(message).toContain('4 / 50 photos analysed');
+  });
+  it.each(['stop', 'profile change'])(
+    'does not resubmit a buffered batch after %s and keeps earlier results',
+    async (interruption) => {
+      const { snapshot, screenshot, fetch, operations, sendMessage } = setup(6);
+      const original = fetch.getMockImplementation()!;
+      let attempts = 0;
+      fetch.mockImplementation(async (url, init) => {
+        if (url.endsWith('/analyse-images') && ++attempts > 1)
+          return Response.json(
+            { error: { code: 'PHOTO_ANALYSIS_BUSY', message: 'Busy', retryAfterMs: 5000 } },
+            { status: 429 },
+          );
+        return original(url, init);
+      });
+      const controller = new AbortController();
+      const receive = vi.fn();
+      await expect(
+        analyseProfileImages(
+          snapshot,
+          'token',
+          controller.signal,
+          receive,
+          operations,
+          (message) => {
+            if (message.includes('retrying in')) {
+              if (interruption === 'stop') controller.abort();
+              else
+                Object.assign(chrome.tabs, { query: vi.fn(async () => [{ id: 2, windowId: 1 }]) });
+            }
+          },
+        ),
+      ).rejects.toThrow();
+      expect(attempts).toBe(2);
+      expect(screenshot).toHaveBeenCalledTimes(6);
+      expect(receive).toHaveBeenCalledOnce();
+      expect(receive.mock.calls[0][1]).toBe(3);
+      expect(sendMessage.mock.calls.at(-1)?.[1].action).toBe('end');
+    },
+  );
+  it('bounds the wait when the backend stays busy', async () => {
+    const { snapshot, fetch, operations, screenshot } = setup(3);
+    const original = fetch.getMockImplementation()!;
+    let attempts = 0;
+    fetch.mockImplementation(async (url, init) => {
+      if (url.endsWith('/analyse-images')) {
+        attempts++;
+        return Response.json(
+          { error: { code: 'PHOTO_ANALYSIS_BUSY', message: 'Busy', retryAfterMs: 1000 } },
+          { status: 429 },
+        );
+      }
+      return original(url, init);
+    });
+    await expect(
+      analyseProfileImages(
+        snapshot,
+        'token',
+        new AbortController().signal,
+        () => undefined,
+        operations,
+      ),
+    ).rejects.toThrow('still busy after waiting');
+    expect(attempts).toBeLessThanOrEqual(8);
+    expect(screenshot).toHaveBeenCalledTimes(3);
+    expect(
+      operations.wait.mock.calls.filter(([ms]) => ms >= 5000).reduce((sum, [ms]) => sum + ms, 0),
+    ).toBe(120000);
+  });
+  it.each([
+    [429, 'RATE_LIMITED'],
+    [504, 'ANALYSIS_TIMEOUT'],
+    [503, 'PROVIDER_UNAVAILABLE'],
+    [409, 'DUPLICATE_BATCH'],
+  ])('does not retry an ambiguous or already-accepted failure (%s %s)', async (status, code) => {
+    const { snapshot, fetch, operations } = setup(3);
+    const original = fetch.getMockImplementation()!;
+    let attempts = 0;
+    fetch.mockImplementation(async (url, init) => {
+      if (url.endsWith('/analyse-images')) {
+        attempts++;
+        return Response.json({ error: { code, message: 'Failure' } }, { status: Number(status) });
+      }
+      return original(url, init);
+    });
+    await expect(
+      analyseProfileImages(
+        snapshot,
+        'token',
+        new AbortController().signal,
+        () => undefined,
+        operations,
+      ),
+    ).rejects.toThrow('Failure');
+    expect(attempts).toBe(1);
+  });
   it.each([1, 2, 4, 7, 50])(
     'stops capture and submission at the selected %s-photo limit',
     async (limit) => {

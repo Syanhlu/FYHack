@@ -83,3 +83,10 @@ Validation: 127 unit/API/component/provider tests passed, including requests thr
 Completed photo observations are automatically included in each batch, with visual provenance and uncertainty retained. Photo analyses and photo evidence have separate collapsed groups; evidence can still be edited or removed. The form explicitly separates the profile owner's text/photos from the user's background, CV and conversation preferences. The input form was inspected in Chromium.
 
 All 141 unit/API/component tests passed. A full panel integration test delivers 50 synthetic photos with 150 observations across multiple batches and verifies that auto-inclusion does not cancel its own run, lose earlier batches, mix user context into profile evidence, or re-add removed observations. Contract checks permit 150 visual observations alongside the existing 120-snippet/60,000-character profile-text limits; the request byte limit is now 1 MiB. Four Chromium flow tests, lint, strict TypeScript and the production build passed. No personal photos or live provider calls were used for this change.
+
+
+## Busy photo batch buffering
+
+The API now distinguishes a busy rejection before acceptance (`PHOTO_ANALYSIS_BUSY`, 429) and supplies a retry delay. The extension retains only the current batch and retries identical IDs/pixels with bounded backoff and a countdown for up to two minutes. Stop and profile/page changes prevent resubmission. Ambiguous network/provider failures and timeouts are not retried. Busy rejections do not reserve attempts or budget.
+
+All 150 unit/API/component tests passed, including eventual success, preserved earlier results, cancellation, profile changes, sustained busy responses, identical retries, cooldown hints, and budget accounting. Two targeted Chromium tests passed: the normal photo flow and a busy response followed by a successful retry with a live countdown, exactly three captures and one accepted batch. Lint, strict TypeScript and the production build passed. This used synthetic Instagram pages and provider doubles, not personal photos or a paid provider call.

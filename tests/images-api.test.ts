@@ -15,6 +15,7 @@ async function fixture(
   options: {
     budget?: number;
     timeout?: number;
+    interval?: number;
     generate?: (i: ImageRequest, s: AbortSignal) => Promise<unknown>;
   } = {},
 ) {
@@ -40,7 +41,7 @@ async function fixture(
       provider: { generate },
       batchBudgetUsd: 0.05,
       runBudgetUsd: options.budget ?? 1,
-      intervalMs: 0,
+      intervalMs: options.interval ?? 0,
     },
   });
   apps.push(app);
@@ -259,9 +260,40 @@ describe('image run lifecycle', () => {
     const first = await batch([1]);
     const pending = send(first);
     await vi.waitFor(() => expect(generate).toHaveBeenCalledOnce());
-    expect((await send(await batch([2]))).statusCode).toBe(429);
+    const next = await batch([2]);
+    const busy = await send(next);
+    expect(busy.statusCode).toBe(429);
+    expect(busy.json().error).toMatchObject({ code: 'PHOTO_ANALYSIS_BUSY', retryAfterMs: 5000 });
+    expect(busy.headers['retry-after']).toBe('5');
     resolve({ status: 'insufficient', reason: 'No supported details.', observations: [] });
     expect((await pending).statusCode).toBe(200);
+    generate.mockResolvedValue({
+      status: 'insufficient',
+      reason: 'No supported details.',
+      observations: [],
+    });
+    expect((await send(next)).statusCode).toBe(200);
+    expect(generate).toHaveBeenCalledTimes(2);
+  });
+  it('gives a cooldown delay without reserving the buffered batch or charging its budget', async () => {
+    const { batch, send, generate } = await fixture({ interval: 7000, budget: 0.1 });
+    const now = Date.now();
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(now);
+    try {
+      expect((await send(await batch([1]))).statusCode).toBe(200);
+      const next = await batch([2]);
+      const busy = await send(next);
+      expect(busy.statusCode).toBe(429);
+      expect(busy.json().error).toMatchObject({ code: 'PHOTO_ANALYSIS_BUSY', retryAfterMs: 7000 });
+      expect(busy.headers['retry-after']).toBe('7');
+      expect(generate).toHaveBeenCalledOnce();
+      clock.mockReturnValue(now + 7000);
+      expect((await send(next)).statusCode).toBe(200);
+      expect(generate).toHaveBeenCalledTimes(2);
+      expect((await send(await batch([3]))).json().error.code).toBe('COST_LIMIT');
+    } finally {
+      clock.mockRestore();
+    }
   });
   it('keeps the image body limit bounded', async () => {
     const { send, generate } = await fixture();

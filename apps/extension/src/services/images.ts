@@ -16,6 +16,17 @@ export type PhotoReview = {
   observations: ImageObservation[];
 };
 export type PhotoSkipReason = { reason: string; count: number };
+const BUSY_WAIT_LIMIT_MS = 120000;
+class PhotoRequestError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public code?: string,
+    public retryAfterMs?: number,
+  ) {
+    super(message);
+  }
+}
 export function delay(ms: number, signal: AbortSignal) {
   return new Promise<void>((resolve, reject) => {
     signal.throwIfAborted();
@@ -39,7 +50,17 @@ async function post(path: string, body: unknown, token: string, signal: AbortSig
     credentials: 'omit',
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error?.message ?? 'Photo analysis failed.');
+  if (!response.ok)
+    throw new PhotoRequestError(
+      data.error?.message ?? 'Photo analysis failed.',
+      response.status,
+      data.error?.code,
+      typeof data.error?.retryAfterMs === 'number' &&
+        Number.isFinite(data.error.retryAfterMs) &&
+        data.error.retryAfterMs > 0
+        ? data.error.retryAfterMs
+        : undefined,
+    );
   return data;
 }
 export function sameCapture(a: PhotoScan, b: PhotoScan, photo: PhotoCandidate) {
@@ -202,26 +223,73 @@ export async function analyseProfileImages(
   const submit = async () => {
     if (!batch.length) return;
     await operations.wait(Math.max(0, run.batchIntervalMs - (Date.now() - lastBatch)), signal);
-    await current();
-    if ((await command('scan')).stopped)
-      throw new Error('Photo capture stopped after page interaction.');
-    progress(`Analysing ${batch.length} captured photo${batch.length === 1 ? '' : 's'}…`);
     const batchId = crypto.randomUUID();
-    lastBatch = Date.now();
-    const response = imageResponseSchema.parse(
-      await post(
-        '/v1/analyse-images',
-        {
-          schemaVersion: SCHEMA_VERSION,
-          runId: run.runId,
-          batchId,
-          snapshotId: snapshot.profile.snapshotId,
-          images: batch.map(({ id, dataUrl }) => ({ id, dataUrl })),
-        },
-        token,
-        AbortSignal.any([signal, AbortSignal.timeout(65000)]),
-      ),
-    );
+    // Keep only this batch in memory while busy; preserve IDs and pixels on retry.
+    const payload = {
+      schemaVersion: SCHEMA_VERSION,
+      runId: run.runId,
+      batchId,
+      snapshotId: snapshot.profile.snapshotId,
+      images: batch.map(({ id, dataUrl }) => ({ id, dataUrl })),
+    };
+    let waitedMs = 0,
+      retries = 0,
+      busySince: number | undefined;
+    const buffered = async () => {
+      while (true) {
+        await current();
+        if ((await command('scan')).stopped)
+          throw new Error('Photo capture stopped after page interaction.');
+        progress(`Analysing ${batch.length} captured photo${batch.length === 1 ? '' : 's'}…`);
+        lastBatch = Date.now();
+        try {
+          return imageResponseSchema.parse(
+            await post(
+              '/v1/analyse-images',
+              payload,
+              token,
+              AbortSignal.any([signal, AbortSignal.timeout(65000)]),
+            ),
+          );
+        } catch (error) {
+          // Never retry a timeout, network failure or provider error: the batch may
+          // already have been billed. Busy responses explicitly precede acceptance.
+          if (
+            !(error instanceof PhotoRequestError) ||
+            error.status !== 429 ||
+            error.code !== 'PHOTO_ANALYSIS_BUSY'
+          )
+            throw error;
+          signal.throwIfAborted();
+          busySince ??= Date.now();
+          const remaining = BUSY_WAIT_LIMIT_MS - Math.max(waitedMs, Date.now() - busySince);
+          if (remaining <= 0 || (error.retryAfterMs ?? 0) > remaining)
+            throw new Error(
+              'Photo analysis is still busy after waiting. Completed observations are available; try a fresh run later.',
+              { cause: error },
+            );
+          const waitMs = Math.min(
+            remaining,
+            Math.max(error.retryAfterMs ?? 0, Math.min(5000 * 2 ** retries, 30000)),
+          );
+          const retryAt = Date.now() + waitMs;
+          const waiting = () =>
+            progress(
+              `Photo analysis is busy. Keeping ${batch.length} captured photo${batch.length === 1 ? '' : 's'} and retrying in ${Math.max(1, Math.ceil((retryAt - Date.now()) / 1000))}s… You can still Stop.`,
+            );
+          waiting();
+          const countdown = setInterval(waiting, 1000);
+          try {
+            await operations.wait(waitMs, signal);
+          } finally {
+            clearInterval(countdown);
+          }
+          waitedMs += waitMs;
+          retries++;
+        }
+      }
+    };
+    const response = await buffered();
     await current();
     if ((await command('scan')).stopped)
       throw new Error('Photo capture stopped after page interaction.');

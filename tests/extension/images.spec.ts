@@ -8,6 +8,7 @@ import type { LocalSnapshot } from '../../packages/contracts/src';
 
 for (const variant of [
   'article',
+  'div-busy',
   'div',
   'div-no-bio',
   'div-stable-url',
@@ -37,6 +38,7 @@ for (const variant of [
     page,
   }) => {
     const captured: Buffer[] = [];
+    const submissions: string[] = [];
     const capturesDuringAnimation: boolean[] = [];
     const app = buildApp({
       token: 'browser-photo-token',
@@ -85,6 +87,18 @@ for (const variant of [
         const url = new URL(route.request().url());
         if (url.hostname === '127.0.0.1') {
           const req = route.request();
+          if (url.pathname === '/v1/analyse-images' && req.method() === 'POST') {
+            submissions.push(req.postData()!);
+            if (variant === 'div-busy' && submissions.length === 1)
+              return route.fulfill({
+                status: 429,
+                contentType: 'application/json',
+                headers: { 'access-control-allow-origin': 'https://www.instagram.com' },
+                body: JSON.stringify({
+                  error: { code: 'PHOTO_ANALYSIS_BUSY', message: 'Busy', retryAfterMs: 1000 },
+                }),
+              });
+          }
           const response = await app.inject({
             method: req.method() as 'GET' | 'POST' | 'OPTIONS',
             url: url.pathname,
@@ -277,6 +291,7 @@ for (const variant of [
           }
         ).PhotoTest;
         let count = 0;
+        const progress: string[] = [];
         const message = await service.analyseProfileImages(
           snapshot,
           'browser-photo-token',
@@ -284,8 +299,10 @@ for (const variant of [
           (_batch, n) => {
             count = n;
           },
+          undefined,
+          (message) => progress.push(message),
         );
-        return { count, message, scroll: scrollY };
+        return { count, message, scroll: scrollY, progress };
       }, snapshot);
       expect(outcome.count).toBe(3);
       expect(outcome.message).toContain('0 skipped');
@@ -296,6 +313,15 @@ for (const variant of [
         await page.evaluate(() => (window as unknown as { openedPosts: string[] }).openedPosts),
       ).toEqual(['/alex/p/photo1/', '/alex/p/photo2/']);
       expect(captured).toHaveLength(3);
+      if (variant === 'div-busy') {
+        expect(submissions).toHaveLength(2);
+        expect(submissions[0]).toBe(submissions[1]);
+        expect(outcome.progress.some((text) => text.includes('Keeping 3 captured photos'))).toBe(
+          true,
+        );
+        expect(outcome.progress.some((text) => /retrying in [1-4]s/.test(text))).toBe(true);
+        expect(capturesDuringAnimation).toHaveLength(3);
+      }
       if (
         [
           'div-obscured',
