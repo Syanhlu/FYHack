@@ -19,6 +19,8 @@ for (const variant of [
   'div-clipped',
   'div-obscured',
   'div-animated-carousel',
+  'div-mixed-video-carousel',
+  'div-hidden-video',
   'div-carousel-controls-overlay',
   'div-offset-overlay',
   'div-partial-overlay',
@@ -181,6 +183,26 @@ for (const variant of [
               content.append(overlay);
             };
           }
+          if('${variant}'==='div-mixed-video-carousel'&&first){
+            let slide=0;
+            const sequence=[null,'${image}',null,null,'${secondImage}',null];
+            const render=()=>{
+              const previous=dialog.querySelector('#post-media');
+              const item=document.createElement(sequence[slide]?'img':'video');
+              item.id='post-media';item.style='width:400px;height:400px';
+              if(sequence[slide])item.src='data:image/png;base64,'+sequence[slide];
+              else item.poster='data:image/png;base64,${thirdImage}';
+              previous.replaceWith(item);
+              if(slide===sequence.length-1)next.remove();
+            };
+            render();next.onclick=()=>{slide++;render();};
+          }
+          if('${variant}'==='div-hidden-video'){
+            const hidden=document.createElement('video');hidden.style='display:none;width:400px;height:400px';content.prepend(hidden);
+            const viewport=document.createElement('div');viewport.style='position:absolute;left:0;top:0;width:400px;height:400px;overflow:hidden;pointer-events:none';
+            const offscreen=document.createElement('video');offscreen.style='position:absolute;left:400px;top:0;width:400px;height:400px';
+            viewport.append(offscreen);content.append(viewport);
+          }
           if('${variant}'==='div-animated-carousel'&&first){
             const viewport=document.createElement('div');viewport.style='width:400px;height:400px;overflow:hidden';
             const track=document.createElement('div');track.style='display:flex;width:800px';
@@ -305,7 +327,11 @@ for (const variant of [
         return { count, message, scroll: scrollY, progress };
       }, snapshot);
       expect(outcome.count).toBe(3);
-      expect(outcome.message).toContain('0 skipped');
+      expect(outcome.message).toContain(
+        variant === 'div-mixed-video-carousel' ? '4 skipped' : '0 skipped',
+      );
+      if (variant === 'div-mixed-video-carousel')
+        expect(outcome.message).toContain('Video slide skipped.');
       expect(outcome.scroll).toBe(0);
       expect(new URL(page.url()).pathname).toBe('/alex/');
       expect(await page.locator('[role="dialog"]').count()).toBe(0);

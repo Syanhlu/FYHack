@@ -83,6 +83,35 @@ function setup(total: number) {
   return { snapshot, screenshot, batches, operations, sendMessage, fetch };
 }
 describe('automatic photo runs', () => {
+  it('adds caption text once per post across carousel scans', async () => {
+    const { snapshot, operations, sendMessage } = setup(4);
+    const original = sendMessage.getMockImplementation()!;
+    sendMessage.mockImplementation(async (tab, message) => {
+      const result = await original(tab, message);
+      return message.type === 'PROFILE_LENS_PHOTOS'
+        ? { ...result, postText: { path: '/p/same', text: 'I love making pottery.' } }
+        : result;
+    });
+    const onText = vi.fn();
+    await analyseProfileImages(
+      snapshot,
+      'token',
+      new AbortController().signal,
+      vi.fn(),
+      operations,
+      undefined,
+      4,
+      onText,
+    );
+    expect(onText).toHaveBeenCalledOnce();
+    expect(onText.mock.calls[0][0]).toEqual([
+      expect.objectContaining({
+        sourceKind: 'post',
+        attribution: 'profile_owner',
+        text: 'I love making pottery.',
+      }),
+    ]);
+  });
   it('buffers the same batch through busy responses, then continues without recapturing photos', async () => {
     const { snapshot, screenshot, batches, operations, fetch } = setup(4);
     const original = fetch.getMockImplementation()!;

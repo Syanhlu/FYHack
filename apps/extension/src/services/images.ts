@@ -4,6 +4,7 @@ import {
   IMAGE_BATCH_SIZE,
   imageResponseSchema,
   type LocalSnapshot,
+  type Evidence,
   type ImageObservation,
 } from '@profile-lens/contracts';
 import type { PhotoCandidate, PhotoScan } from '../extraction/images';
@@ -152,6 +153,7 @@ export async function analyseProfileImages(
   operations = { crop: cropPhoto, wait: delay },
   onProgress?: (message: string, skips: PhotoSkipReason[]) => void,
   maxPhotos: number = IMAGE_LIMIT,
+  onPostText?: (evidence: Evidence[]) => void,
 ): Promise<string> {
   if (!Number.isInteger(maxPhotos) || maxPhotos < 1 || maxPhotos > IMAGE_LIMIT)
     throw new Error(`Choose a photo limit between 1 and ${IMAGE_LIMIT}.`);
@@ -200,6 +202,34 @@ export async function analyseProfileImages(
     discoveryMs = 0,
     lastCapture = 0,
     lastBatch = 0;
+  const capturedPosts = new Set<string>();
+  let textCount = snapshot.profile.evidence.filter((e) => e.sourceKind !== 'visual').length;
+  let textCharacters = snapshot.profile.evidence
+    .filter((e) => e.sourceKind !== 'visual')
+    .reduce((n, e) => n + e.text.length, 0);
+  const capturePostText = (scan: PhotoScan) => {
+    const post = scan.postText;
+    if (!onPostText || !post?.text || capturedPosts.has(post.path)) return;
+    capturedPosts.add(post.path);
+    const evidence: Evidence[] = [];
+    for (
+      let offset = 0;
+      offset < post.text.length && textCount < 120 && textCharacters < 60000;
+      offset += 600
+    ) {
+      const text = post.text.slice(offset, offset + Math.min(600, 60000 - textCharacters));
+      evidence.push({
+        id: `p${crypto.randomUUID()}`,
+        text,
+        sourceKind: 'post',
+        attribution: 'profile_owner',
+        sectionLabel: 'Instagram post caption',
+      });
+      textCount++;
+      textCharacters += text.length;
+    }
+    if (evidence.length) onPostText(evidence);
+  };
   const captureAttempts = new Map<string, number>();
   const seen = new Set<string>(),
     sources = new Set<string>();
@@ -328,6 +358,7 @@ export async function analyseProfileImages(
       await current();
       const scan = await command('scan');
       if (scan.stopped) throw new Error('Photo capture stopped after page interaction.');
+      capturePostText(scan);
       if (!scan.candidates.length && !scan.end)
         skip(scan.skipReason ?? 'No capturable photo was found in this post.');
       for (const candidate of scan.candidates) {

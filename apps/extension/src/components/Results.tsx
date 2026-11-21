@@ -322,7 +322,14 @@ export function RomanticView({
       {song && <Soundtrack tone={String(config?.tone ?? 'warm')} tags={[...song.tags]} />}
       <section>
         <h2>The things they enjoy</h2>
-        <Facts items={data.interests} evidence={evidence} />
+        <ul className="interest-list">
+          {data.interests.map((item, i) => (
+            <li key={i}>
+              <span>{item.text}</span>
+              <Sources ids={item.evidenceIds} evidence={evidence} />
+            </li>
+          ))}
+        </ul>
       </section>
       <section>
         <span className="eyebrow">Possible ideas</span>

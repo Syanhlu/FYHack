@@ -175,6 +175,9 @@ export function ImageReview({
           }
         },
         maxPhotos,
+        (evidence) => {
+          if (revision === generation.current) onAccept(evidence, snapshot.profile.snapshotId);
+        },
       );
       if (revision === generation.current) setStatus(message);
     } catch (error) {
@@ -195,13 +198,14 @@ export function ImageReview({
       <h2>Explore their photos</h2>
       <p className="hint">
         Look for small details: a project in progress, an interesting book, or a distinctive
-        activity. Completed observations are automatically added to this person's photo evidence.
-        Expand the evidence below to edit or remove details before generating ideas.
+        activity. Photo observations and readable post captions are automatically added to the
+        evidence. Expand the evidence below to edit or remove details before generating ideas.
       </p>
       <p className="hint">
         Automatically open profile posts and inspect up to {maxPhotos} photos, including carousel
-        slides. Photos are analysed as displayed, including overlays. Sends cropped photos to your
-        local backend and OpenAI. Image text and contact details may remain visible in the pixels.
+        slides. Captions from those posts are also read when available. Photos are analysed as
+        displayed, including overlays. Sends cropped photos to your local backend and OpenAI. Image
+        text and contact details may remain visible in the pixels.
       </p>
       <div className="photo-limit">
         <label htmlFor={photoLimitId}>Maximum photos: {maxPhotos}</label>

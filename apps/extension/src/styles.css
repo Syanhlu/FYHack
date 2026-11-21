@@ -723,6 +723,21 @@ blockquote small {
 .fact-list p {
   font-size: 12px;
 }
+.interest-list {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.interest-list > li {
+  padding: 4px 0;
+}
+.interest-list > li::marker {
+  color: var(--accent);
+}
+.interest-list .sources {
+  margin-top: 2px;
+}
 .count {
   font-size: 10px;
   border: 1px solid var(--line);

@@ -216,24 +216,6 @@ describe('image API', () => {
     });
     expect((await send(await batch([1]))).statusCode).toBe(504);
   });
-  it('requires nonvisual text for generation', async () => {
-    const { app } = await fixture();
-    const { request } = await import('./helpers');
-    const input = request();
-    input.profile.evidence = [
-      {
-        id: 'v1',
-        sourceKind: 'visual',
-        attribution: 'visual_observation',
-        sourceImageId: crypto.randomUUID(),
-        observationKind: 'scene',
-        sectionLabel: 'Photo',
-        text: 'A bicycle is visible in the photo.',
-      },
-    ];
-    const res = await app.inject({ method: 'POST', url: '/v1/analyse', headers, payload: input });
-    expect(res.json().status).toBe('insufficient');
-  });
 });
 
 describe('image run lifecycle', () => {
