@@ -81,6 +81,41 @@ describe('local API', () => {
     expect(res.json().status).toBe('blocked');
     expect(generate).not.toHaveBeenCalled();
   });
+  it.each(['outreach', 'romantic'])('allows photo-only evidence in %s', async (mode) => {
+    const { app, generate } = make();
+    const input = request(mode);
+    input.profile.evidence = [
+      {
+        id: 'e1',
+        sourceKind: 'visual',
+        attribution: 'visual_observation',
+        sourceImageId: crypto.randomUUID(),
+        observationKind: 'scene',
+        sectionLabel: 'Photo',
+        text: 'A bicycle is visible in the photo.',
+      },
+    ];
+    const res = await app.inject({ method: 'POST', url: '/v1/analyse', headers, payload: input });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().status).toBe('ready');
+    expect(generate).toHaveBeenCalledOnce();
+  });
+  it('uses a short post caption without requiring a bio', async () => {
+    const { app, generate } = make();
+    const input = request('romantic');
+    input.profile.evidence = [
+      {
+        id: 'e1',
+        text: 'I love pottery!',
+        sourceKind: 'post',
+        attribution: 'profile_owner',
+        sectionLabel: 'Instagram post caption',
+      },
+    ];
+    const res = await app.inject({ method: 'POST', url: '/v1/analyse', headers, payload: input });
+    expect(res.json().status).toBe('ready');
+    expect(generate).toHaveBeenCalledOnce();
+  });
   it('returns insufficient for sparse evidence', async () => {
     const { app, generate } = make();
     const input = request();

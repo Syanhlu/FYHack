@@ -131,11 +131,12 @@ export function buildApp(options: AppOptions) {
     });
     const gate = mode.eligibility(input);
     if (gate) return envelope(gate);
-    if (!input.profile.evidence.some((e) => e.sourceKind !== 'visual' && e.text.length >= 20))
+    if (!input.profile.evidence.some((e) => e.text.trim().length > 0))
       return envelope({
         status: 'insufficient',
-        reason: 'Add a biography, project, or stated interest beyond just a name.',
-        missingInformation: ['Meaningful profile information'],
+        reason:
+          'Add a readable post, profile detail, or analyse a photo to find conversation ideas.',
+        missingInformation: ['Profile text, post captions, or photo observations'],
         result: null,
       });
     const now = Date.now();

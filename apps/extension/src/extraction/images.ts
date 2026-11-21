@@ -1,4 +1,5 @@
-import { isVisible } from './dom';
+import { redactText } from '@profile-lens/contracts';
+import { isVisible, visibleText } from './dom';
 
 export type PhotoCandidate = {
   key: string;
@@ -18,6 +19,7 @@ export type PhotoScan = {
   end: boolean;
   stopped: boolean;
   skipReason?: string;
+  postText?: { path: string; text: string };
 };
 function label(node: Element) {
   return (
@@ -90,6 +92,34 @@ function postContent(doc: Document): HTMLElement | undefined {
   if (!dialog) return;
   return [...dialog.querySelectorAll<HTMLElement>('article')].find(isVisible) ?? dialog;
 }
+// Read only the caption heading paired with the captured owner's author link.
+// Comment bodies, recommendations and unlabelled dialog text are not captions.
+export function instagramPostCaption(doc: Document, profileHref: string): string {
+  const content = postContent(doc);
+  if (!content) return '';
+  const profile = new URL(profileHref);
+  const ownerPath = profile.pathname.replace(/\/$/, '').toLowerCase();
+  for (const caption of content.querySelectorAll('h1,h2')) {
+    if (
+      !isVisible(caption) ||
+      caption.closest('header,aside,[data-author="other"],[data-recommendations]')
+    )
+      continue;
+    const row = caption.closest('li') ?? caption.parentElement;
+    if (!row || row === content) continue;
+    const author = row.querySelector<HTMLAnchorElement>('a[href]');
+    if (!author || !isVisible(author)) continue;
+    const url = new URL(author.getAttribute('href')!, profileHref);
+    if (
+      url.origin !== profile.origin ||
+      url.pathname.replace(/\/$/, '').toLowerCase() !== ownerPath
+    )
+      continue;
+    const text = redactText(visibleText(caption));
+    if (text && text.replace(/^@/, '').toLowerCase() !== ownerPath.slice(1)) return text;
+  }
+  return '';
+}
 type CropRect = {
   x: number;
   y: number;
@@ -98,7 +128,7 @@ type CropRect = {
   right: number;
   bottom: number;
 };
-function visibleImageRect(img: HTMLImageElement): CropRect | null {
+function visibleMediaRect(img: HTMLImageElement | HTMLVideoElement): CropRect | null {
   const win = img.ownerDocument.defaultView!;
   const rect = img.getBoundingClientRect();
   let left = Math.max(0, rect.left),
@@ -125,22 +155,25 @@ function visibleImageRect(img: HTMLImageElement): CropRect | null {
     ? { x: left, y: top, right, bottom, width, height }
     : null;
 }
-function media(doc: Document): HTMLImageElement | undefined {
+function media(doc: Document): HTMLImageElement | HTMLVideoElement | undefined {
   const content = postContent(doc);
   if (!content) return;
-  return [...content.querySelectorAll<HTMLImageElement>('img')]
+  return [...content.querySelectorAll<HTMLImageElement | HTMLVideoElement>('video,img')]
     .filter(
       (img) =>
         isVisible(img) &&
-        img.complete &&
-        img.naturalWidth &&
+        (img.tagName === 'VIDEO' ||
+          ((img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth)) &&
         !img.closest('header,aside,a,[data-author="other"],[data-recommendations]') &&
-        visibleImageRect(img),
+        visibleMediaRect(img),
     )
     .sort((a, b) => {
-      const first = visibleImageRect(a)!,
-        second = visibleImageRect(b)!;
-      return second.width * second.height - first.width * first.height;
+      const first = visibleMediaRect(a)!,
+        second = visibleMediaRect(b)!;
+      return (
+        second.width * second.height - first.width * first.height ||
+        Number(b.tagName === 'VIDEO') - Number(a.tagName === 'VIDEO')
+      );
     })[0];
 }
 function carouselButton(doc: Document): HTMLElement | undefined {
@@ -174,9 +207,10 @@ export function photoSelection(
   const img = media(doc);
   if (!img || !path)
     return { candidates: [], skipReason: 'No loaded main photo with enough visible area.' };
+  if (img.tagName === 'VIDEO') return { candidates: [], skipReason: 'Video slide skipped.' };
   // Capture the loaded image's visible bounds as rendered. Overlay styles and
   // hit-test targets do not determine whether a carousel slide can be analysed.
-  const rect = visibleImageRect(img)!;
+  const rect = visibleMediaRect(img)!;
   const source = img.currentSrc || img.src;
   if (!source) return { candidates: [], skipReason: 'The photo source is not ready.' };
   return {
@@ -267,7 +301,11 @@ export function photoController(
     }
     throw new Error(message);
   };
-  const waitForSettledPhoto = async (message: string, previousSource?: string) => {
+  const waitForSettledMedia = async (
+    message: string,
+    previous?: { element: HTMLImageElement | HTMLVideoElement; source: string },
+  ) => {
+    let stableElement: HTMLImageElement | HTMLVideoElement | undefined;
     let stableSource = '',
       stableBounds: number[] = [],
       stableSince = 0;
@@ -275,8 +313,13 @@ export function photoController(
       () => {
         if (!current()) throw new Error('The profile changed.');
         const image = media(doc);
-        const source = image?.currentSrc || image?.src;
-        if (!image || !source || source === previousSource) {
+        const source = image?.currentSrc || image?.getAttribute('src') || '';
+        if (
+          !image ||
+          (!source && image.tagName !== 'VIDEO') ||
+          (image === previous?.element && source === previous.source)
+        ) {
+          stableElement = undefined;
           stableSource = '';
           stableBounds = [];
           stableSince = 0;
@@ -285,7 +328,7 @@ export function photoController(
         const rect = image.getBoundingClientRect();
         // A new source can be visible long before the carousel stops translating.
         // Watch both the whole image and its clipped crop through consecutive polls.
-        const crop = visibleImageRect(image)!;
+        const crop = visibleMediaRect(image)!;
         const next = [
           rect.x,
           rect.y,
@@ -297,9 +340,11 @@ export function photoController(
           crop.height,
         ];
         if (
+          image !== stableElement ||
           source !== stableSource ||
           next.some((value, i) => Math.abs(value - stableBounds[i]!) > 2)
         ) {
+          stableElement = image;
           stableSource = source;
           stableBounds = next;
           stableSince = Date.now();
@@ -381,12 +426,11 @@ export function photoController(
           'Instagram did not open the selected post in a readable dialog.',
         );
         await waitFor(
-          () => !!media(doc) || !!postContent(doc)?.querySelector('video'),
+          () => !!media(doc),
           'The post opened, but its main photo did not load or could not be identified. This Instagram layout may be unsupported.',
           15000,
         );
-        if (media(doc))
-          await waitForSettledPhoto('The opened photo did not finish moving or loading.');
+        await waitForSettledMedia('The opened slide did not finish moving or loading.');
         if (!active || stopped || !current()) throw new Error('Photo browsing stopped.');
         return;
       }
@@ -458,18 +502,26 @@ export function photoController(
       if (action === 'advance' && !stopped && !ended) {
         const next = carouselButton(doc);
         if (next && slides < 19) {
-          const previousSource = media(doc)?.currentSrc || media(doc)?.src;
+          const previousMedia = media(doc)!;
+          const previous = {
+            element: previousMedia,
+            source: previousMedia.currentSrc || previousMedia.getAttribute('src') || '',
+          };
           click(next);
           slides++;
-          await waitForSettledPhoto(
-            'The next carousel photo did not finish loading or moving. Completed observations are still available.',
-            previousSource,
+          await waitForSettledMedia(
+            'The next carousel slide did not finish loading or moving. Completed observations are still available.',
+            previous,
           );
           if (!active || stopped || !current()) throw new Error('Photo browsing stopped.');
         } else await openNext();
       }
       return {
         ...(stopped || ended ? { candidates: [] } : photoSelection(doc, expectedPost)),
+        postText:
+          !stopped && !ended && expectedPost
+            ? { path: expectedPost, text: instagramPostCaption(doc, profileHref) }
+            : undefined,
         width: win.innerWidth,
         height: win.innerHeight,
         scale: win.devicePixelRatio,
