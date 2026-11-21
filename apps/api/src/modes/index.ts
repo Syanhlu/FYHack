@@ -139,6 +139,7 @@ Never infer sensitive traits, vulnerabilities, attraction, willingness to date, 
 Return insufficient for sparse evidence and blocked for ineligible requests; then result must be null and explain briefly in reason.
 For ready: result must match the mode schema, reason is empty, and missingInformation is empty.
 Moodboard: exactly 6 tiles: 3 image tiles, 1 typography, 1 quote or paraphrase, 1 palette. Select allowed IDs only.
+The board is laid out as a collage poster: its title is the cover headline (1–4 punchy words, no full stop), the typography tile's title is a 2–5 word phrase, and image tile titles are 1–3 word labels.
 Each tile explains the source connection. Image tiles need an assetId; other tiles use null. Use diverse assets.
 quoteText must be an EXACT substring of referenced evidence, at most 200 characters, or null for a paraphrase.
 Short captions, natural language, no HTML, URLs, or exact addresses/schedules. No unsupported certainty.
