@@ -12,6 +12,8 @@ Review thumbnails, visual observations, and OCR text. Explicitly accepted observ
 
 ## Capture and navigation
 
+A verified Instagram header can start photo analysis even when its bio is empty or cannot be read. The snapshot contains no invented text evidence and displays a warning; the username must still match the profile URL. Nested bio spans are kept together, and short bio text still contributes to eligibility checks.
+
 `apps/extension/src/extraction/images.ts` owns post discovery, modal/carousel controls, and restoration. Only same-origin `/p/...` or `/<profile-username>/p/...` links found in the captured profile's main grid are opened. Username-prefixed links must match the captured profile; both forms are deduplicated by post code. Boxless (`display: contents`) links use their visible thumbnail bounds for discovery. Headers, sidebars, recommendations, stories, and reel links are excluded. Only the dominant loaded post image inside the owned visible dialog is considered (an article wrapper is optional); avatars and linked thumbnails are excluded. Selection uses visible area after viewport and overflow clipping, so off-screen preloaded slides are excluded. At least 25% of the image and a 96×96-pixel area must be visible. Only that visible portion is cropped.
 
 Capture uses the image’s visible rectangle as displayed on screen. Overlay inspection, hit testing, opacity thresholds and searching for an unobstructed sub-crop have been removed. Controls, shadows, text and covering panels within that rectangle remain in the submitted pixels and do not cause a skip. Content outside the photo rectangle is not included.

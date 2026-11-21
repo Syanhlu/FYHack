@@ -131,7 +131,24 @@ describe('Instagram profile extraction', () => {
   });
   it('does not read images or grid text when the bio is empty', async () => {
     profile('');
-    await expect(extractProfile(document, href)).rejects.toThrow(/Instagram bio/);
+    const result = await extractProfile(document, href);
+    expect(result.adapterId).toBe('instagram-best-effort');
+    expect(result.profile.displayName).toBe('@alex.morgan');
+    expect(result.profile.evidence).toEqual([]);
+    expect(result.captureWarnings?.[0]).toContain('You can still analyse profile images');
+  });
+  it('keeps nested bio fragments together without including header controls', async () => {
+    profile(
+      '<span dir="auto">I make </span><span dir="auto">pottery </span><span dir="auto">and hike.</span>',
+    );
+    const result = await extractProfile(document, href);
+    expect(result.profile.evidence.map((e) => e.text)).toEqual(['I make pottery and hike.']);
+  });
+  it('retains eligibility signals from a short bio even without text evidence', async () => {
+    profile('I am 17');
+    const result = await extractProfile(document, href);
+    expect(result.profile.evidence).toEqual([]);
+    expect(result.profile.eligibilitySignals.minorMentioned).toBe(true);
   });
   it('preserves eligibility checks and evidence limits', async () => {
     profile(`I am 17. Please don't message me. ${'I enjoy pottery. '.repeat(1000)}`);

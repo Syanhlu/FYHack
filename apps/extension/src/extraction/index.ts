@@ -45,12 +45,16 @@ function instagramOwner(root: HTMLElement, href: string): string {
 }
 function instagramBioNodes(root: HTMLElement): Element[] {
   const selector = 'p,[dir="auto"]';
-  return [...root.querySelectorAll(selector)].filter(
+  const excluded = 'a,button,[role="button"],h1,h2,[role="heading"],ul,ol,[role="dialog"]';
+  const nodes = [...root.querySelectorAll(selector)].filter(
     (node) =>
       isVisible(node) &&
-      !node.closest('a,button,[role="button"],h1,h2,[role="heading"],ul,ol,[role="dialog"]') &&
-      !node.querySelector(selector),
+      !node.closest(excluded) &&
+      !node.querySelector('button,[role="button"],h1,h2,[role="heading"],ul,ol,[role="dialog"]'),
   );
+  // Keep a bio sentence together when Instagram splits it into nested spans.
+  // Broad header wrappers containing controls/statistics are excluded above.
+  return nodes.filter((node) => !nodes.some((parent) => parent !== node && parent.contains(node)));
 }
 export function profileRoot(doc: Document, href = doc.location.href): HTMLElement | null {
   // Read only a profile header whose visible username matches the current route.
@@ -151,9 +155,12 @@ export async function extractProfile(
   const maxCharacters = linkedin ? 60000 : 12000;
   for (const block of blocks) {
     const raw = block.text;
+    // Short bios can still contain an age or contact boundary, even when they
+    // are too short to retain as useful conversation evidence.
+    if (instagram && raw) safetyParts.push(raw);
     if (!raw || raw === displayName || raw.length < 12 || seen.has(raw)) continue;
     seen.add(raw);
-    safetyParts.push(raw);
+    if (!instagram) safetyParts.push(raw);
     const clean = redactText(raw);
     const sectionLabel = block.label;
     const sourceKind =
@@ -181,11 +188,14 @@ export async function extractProfile(
     }
   }
   if (nodes.length > 250) truncated = true;
-  if (evidence.length === 0)
+  if (evidence.length === 0 && !instagram)
     throw new Error(
-      instagram
-        ? 'The profile opened, but no readable profile details were found in the Instagram bio. Let the profile load, then try again, or paste profile text.'
-        : 'The profile opened, but no readable profile details were found. Let the About or Experience sections load, then try again, or paste profile text.',
+      'The profile opened, but no readable profile details were found. Let the About or Experience sections load, then try again, or paste profile text.',
+    );
+  const warnings = [...(captured?.warnings ?? [])];
+  if (instagram && !evidence.length)
+    warnings.push(
+      'No readable bio text was captured. You can still analyse profile images. If the bio is still loading, read the profile again.',
     );
   return {
     profile: {
@@ -201,6 +211,6 @@ export async function extractProfile(
     adapterId: instagram ? 'instagram-best-effort' : linkedin ? 'linkedin-best-effort' : 'generic',
     capturedAt: new Date().toISOString(),
     inputRevision: 0,
-    captureWarnings: captured?.warnings,
+    captureWarnings: warnings.length ? warnings : undefined,
   };
 }

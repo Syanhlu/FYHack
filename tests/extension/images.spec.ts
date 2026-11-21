@@ -9,6 +9,7 @@ import type { LocalSnapshot } from '../../packages/contracts/src';
 for (const variant of [
   'article',
   'div',
+  'div-no-bio',
   'div-stable-url',
   'div-slow-image',
   'div-pointer-events',
@@ -102,7 +103,7 @@ for (const variant of [
         return route.fulfill({
           contentType: 'text/html',
           body: `<!doctype html><style>body{margin:0;background:#0022ff}img{display:block}header{height:200px}main>a{display:contents}main>a>img{width:160px;height:160px;margin:30px}</style>
-        <main><header><h2>alex</h2><span dir="auto">I enjoy art and the outdoors.</span><a href="/p/avatar/"><img src="data:image/png;base64,${image}" /></a></header>
+        <main><header><h2>alex</h2><span dir="auto">${variant === 'div-no-bio' ? '' : 'I enjoy art and the outdoors.'}</span><a href="/p/avatar/"><img src="data:image/png;base64,${image}" /></a></header>
         <a href="/alex/p/photo1/"><img src="data:image/png;base64,${image}" /></a>
         <a href="/reel/skip/"><img src="data:image/png;base64,${image}" /></a>
         <aside><a href="/p/recommendation/"><img src="data:image/png;base64,${image}" /></a></aside><div style="height:1000px"></div><a href="/alex/p/photo2/"><img src="data:image/png;base64,${secondImage}" /></a></main>
@@ -246,6 +247,10 @@ for (const variant of [
         source,
       )) as LocalSnapshot;
       expect(snapshot.adapterId).toBe('instagram-best-effort');
+      if (variant === 'div-no-bio') {
+        expect(snapshot.profile.evidence).toEqual([]);
+        expect(snapshot.captureWarnings?.[0]).toContain('You can still analyse profile images');
+      }
       snapshot.tabId = 1;
       const bundle = await build({
         configFile: false,
