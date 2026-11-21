@@ -1,0 +1,5 @@
+{
+  "extends": "./.wxt/tsconfig.json",
+  "compilerOptions": { "strict": true, "jsx": "react-jsx", "types": ["chrome", "vite/client"] },
+  "include": ["**/*.ts", "**/*.tsx", "../../packages/**/*.ts"]
+}
