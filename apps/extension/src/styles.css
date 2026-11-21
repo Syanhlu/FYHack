@@ -809,7 +809,7 @@ blockquote small {
 }
 .song-card {
   display: grid;
-  grid-template-columns: 46px 1fr 20px;
+  grid-template-columns: 46px 1fr auto;
   gap: 12px;
   background: var(--wash);
   padding: 17px;
@@ -839,6 +839,9 @@ blockquote small {
   place-items: center;
   color: var(--soft);
 }
+.record.spinning {
+  animation: spin 3s linear infinite;
+}
 .song-card .song-reason,
 .song-card > .sources,
 .song-card > small,
@@ -852,9 +855,6 @@ blockquote small {
 .song-card > small {
   font-size: 9px;
   color: var(--muted);
-}
-.song-card > a {
-  display: flex;
 }
 .empty-result {
   text-align: center;
@@ -923,7 +923,8 @@ blockquote small {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .spin {
+  .spin,
+  .record.spinning {
     animation: none;
   }
   * {

@@ -45,16 +45,50 @@ function instagramOwner(root: HTMLElement, href: string): string {
 }
 function instagramBioNodes(root: HTMLElement): Element[] {
   const selector = 'p,[dir="auto"]';
-  const excluded = 'a,button,[role="button"],h1,h2,[role="heading"],ul,ol,[role="dialog"]';
-  const nodes = [...root.querySelectorAll(selector)].filter(
-    (node) =>
-      isVisible(node) &&
-      !node.closest(excluded) &&
-      !node.querySelector('button,[role="button"],h1,h2,[role="heading"],ul,ol,[role="dialog"]'),
-  );
+  const nodes = [...root.querySelectorAll(selector)].filter((node) => {
+    if (
+      !isVisible(node) ||
+      node.closest('a,button,h1,h2,[role="heading"],ul,ol,[role="dialog"],[role="menu"]') ||
+      node.querySelector('button,[role="button"],h1,h2,[role="heading"],ul,ol,[role="dialog"]')
+    )
+      return false;
+    // Instagram wraps the bio text in a "more" expander: a role=button inside the bio's own
+    // text span. Controls such as Follow are role=buttons with no text span around them.
+    const control = node.closest('[role="button"]');
+    return !control || Boolean(control.parentElement?.closest(selector));
+  });
   // Keep a bio sentence together when Instagram splits it into nested spans.
   // Broad header wrappers containing controls/statistics are excluded above.
-  return nodes.filter((node) => !nodes.some((parent) => parent !== node && parent.contains(node)));
+  return nodes.filter(
+    (node) =>
+      !nodes.some((parent) => parent !== node && parent.contains(node)) &&
+      !/^[\d.,]+\s*[KMB]?\s+(?:posts?|followers?|following)$/i.test(visibleText(node)),
+  );
+}
+/** The owner's website links: anchors leaving Instagram, or the "site.com and 2 more" button.
+ * Follower counts, mutual-follower lines and other in-app links are not profile details. */
+function instagramLinkNodes(root: HTMLElement, href: string): Element[] {
+  return [...root.querySelectorAll('a[href],button')].flatMap((control) => {
+    if (!isVisible(control) || control.closest('ul,ol,[role="dialog"],[role="menu"],h1,h2'))
+      return [];
+    // Read the label element, not the control: icons carry their own hidden titles.
+    const label = control.querySelector('[dir="auto"]') ?? control;
+    if (control.matches('button'))
+      return /^(?:https?:\/\/|www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)+/i.test(visibleText(label))
+        ? [label]
+        : [];
+    try {
+      const host = new URL(control.getAttribute('href')!, href).hostname;
+      // Instagram routes external links through l.instagram.com. Its own Threads badge
+      // is an app shortcut, not a detail the owner wrote.
+      return host === 'l.instagram.com' ||
+        !/(^|\.)(?:instagram\.com|threads\.(?:net|com))$/.test(host)
+        ? [label]
+        : [];
+    } catch {
+      return [];
+    }
+  });
 }
 export function profileRoot(doc: Document, href = doc.location.href): HTMLElement | null {
   // Read only a profile header whose visible username matches the current route.
@@ -127,7 +161,7 @@ export async function extractProfile(
   const selector = 'p,li';
   const sections = linkedin ? [...linkedInHeader(root), ...linkedInSections(root)] : [];
   const nodes = instagram
-    ? instagramBioNodes(root)
+    ? [...instagramBioNodes(root), ...instagramLinkNodes(root, href)]
     : linkedin
       ? sections.map(({ node }) => node)
       : [...root.querySelectorAll(selector)].filter(isVisible);
@@ -136,17 +170,29 @@ export async function extractProfile(
   const safetyParts: string[] = [];
   let total = 0;
   let truncated = false;
-  const blocks =
+  const blocks: (ProfileBlock & { minLength?: number })[] =
     captured?.blocks ??
     nodes.slice(0, 250).flatMap((node) => {
       if (!linkedin && !instagram && node.querySelector(selector)) return [];
+      if (instagram) {
+        const link = Boolean(node.closest('a,button'));
+        return [
+          {
+            text: visibleText(node),
+            label: link ? 'Instagram link' : 'Instagram bio',
+            // Text inside the bio expander or a website link is certainly the owner's, so
+            // short bios count. Loose short text may be the display name; keep the 12 minimum.
+            minLength: link || node.closest('[role="button"]') ? 2 : 12,
+          },
+        ];
+      }
       return [
         {
           text: linkedin ? linkedInText(node) : visibleText(node),
           label: cleanText(
             sections.find((section) => section.node === node)?.label ??
               node.closest('section')?.querySelector('h2,h3')?.textContent ??
-              (instagram ? 'Instagram bio' : 'Profile'),
+              'Profile',
           ).slice(0, 80),
         },
       ];
@@ -158,7 +204,8 @@ export async function extractProfile(
     // Short bios can still contain an age or contact boundary, even when they
     // are too short to retain as useful conversation evidence.
     if (instagram && raw) safetyParts.push(raw);
-    if (!raw || raw === displayName || raw.length < 12 || seen.has(raw)) continue;
+    if (!raw || raw === displayName || raw.length < (block.minLength ?? 12) || seen.has(raw))
+      continue;
     seen.add(raw);
     if (!instagram) safetyParts.push(raw);
     const clean = redactText(raw);

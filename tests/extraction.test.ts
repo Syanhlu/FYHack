@@ -68,7 +68,7 @@ describe('Instagram profile extraction', () => {
       <section><h2>alex.morgan</h2><button><span dir="auto">Follow this account</span></button></section>
       <ul><li><span dir="auto">12345 followers</span></li></ul>
       <section><span dir="auto">Alex Morgan</span><div><span dir="auto">${bio}</span></div>
-      <a href="https://example.com"><span dir="auto">My external website</span></a>
+      <a href="/explore/people/"><span dir="auto">Discover more people</span></a>
       <span dir="auto" hidden>Hidden profile details</span>
       <aside><span dir="auto">Suggested account biography</span></aside></section>
       </header><article><p>A third-party post caption about skiing.</p><img alt="A person playing tennis" /></article>
@@ -128,6 +128,35 @@ describe('Instagram profile extraction', () => {
     profile();
     document.querySelector('h2')!.hidden = true;
     await expect(extractProfile(document, href)).rejects.toThrow(/No main profile/);
+  });
+  it('reads a bio wrapped in the expander control, but not other buttons', async () => {
+    document.body.innerHTML = `<main><header><section><h2 dir="auto">alex.morgan</h2>
+      <span dir="auto"><div role="button"><span dir="auto">Making pots and climbing hills, mostly.</span></div></span>
+      <div role="button"><span dir="auto">Message this account</span></div>
+      <div role="menu"><div role="button"><span dir="auto">Highlight reel title</span></div></div>
+      </section></header></main>`;
+    const result = await extractProfile(document, href);
+    expect(result.profile.evidence.map((e) => e.text)).toEqual([
+      'Making pots and climbing hills, mostly.',
+    ]);
+  });
+  it('keeps short bios and website links, but not counts or in-app links', async () => {
+    document.body.innerHTML = `<main><header><section><h2 dir="auto">alex.morgan</h2>
+      <span dir="auto">Alex</span><div><span dir="auto">5,018 posts</span></div>
+      <a href="/alex.morgan/followers/"><span dir="auto">104M followers</span></a>
+      <span dir="auto"><div role="button"><span dir="auto">Potter</span></div></span>
+      <a href="https://l.instagram.com/?u=x"><span dir="auto">alexmakespots.example</span></a>
+      <button><svg><title>Link icon</title></svg><div dir="auto">shop.example and 2 more</div></button>
+      <a href="https://www.threads.com/@alex.morgan"><span dir="auto">alex.morgan</span></a>
+      <button><div dir="auto">Follow</div></button>
+      <a href="/jamie/"><span dir="auto">Followed by jamie.lee + 3 more</span></a>
+      </section></header></main>`;
+    const result = await extractProfile(document, href);
+    expect(result.profile.evidence.map((e) => [e.sectionLabel, e.text])).toEqual([
+      ['Instagram bio', 'Potter'],
+      ['Instagram link', 'alexmakespots.example'],
+      ['Instagram link', 'shop.example and 2 more'],
+    ]);
   });
   it('does not read images or grid text when the bio is empty', async () => {
     profile('');

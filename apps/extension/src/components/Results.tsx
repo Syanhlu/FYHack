@@ -1,6 +1,6 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import { ArrowUpRight, Check, Copy, Music2, Quote, Sparkles } from 'lucide-react';
-import { getAsset, getSong, palettes, songSearchUrl } from '@profile-lens/catalogues';
+import { Check, Copy, Music2, Pause, Play, Quote, Sparkles } from 'lucide-react';
+import { getAsset, getSong, palettes } from '@profile-lens/catalogues';
 import type {
   CitedText,
   Draft,
@@ -18,18 +18,44 @@ export const readable = (value: string) => {
   return words === value ? value : words.charAt(0).toUpperCase() + words.slice(1);
 };
 // Plays generated ambient music matched to the soundtrack pick's mood, with a pause control.
-function AmbientMusic({ tone, tags }: { tone: string; tags: string[] }) {
-  const [playing, setPlaying] = useState(true);
+const toneNames: Record<string, string> = {
+  warm: 'Warm & direct',
+  playful: 'Light & playful',
+  heartfelt: 'Sincere & heartfelt',
+  confident: 'Confident & bold',
+  relaxed: 'Relaxed & easygoing',
+};
+// The moodboard's soundtrack: original music generated in the browser from the chosen tone
+// and the mood picked for this profile. The record spins while it plays.
+function Soundtrack({ tone, tags }: { tone: string; tags: string[] }) {
+  const canPlay = typeof AudioContext !== 'undefined';
+  const [playing, setPlaying] = useState(canPlay);
   const mood = tags.join(' ');
   useEffect(() => {
-    if (!playing || typeof AudioContext === 'undefined') return;
+    if (!playing) return;
     return startMusic(tone, mood.split(' '));
   }, [playing, tone, mood]);
-  if (typeof AudioContext === 'undefined') return null;
   return (
-    <button className="text-button" aria-pressed={playing} onClick={() => setPlaying(!playing)}>
-      {playing ? 'Pause ambient music' : 'Play ambient music'}
-    </button>
+    <section className="song-card">
+      <div className={playing ? 'record spinning' : 'record'}>
+        <Music2 size={23} />
+      </div>
+      <div>
+        <span className="eyebrow">A soundtrack for this moodboard</span>
+        <h3>{toneNames[tone] ?? toneNames.warm}</h3>
+        <p>{tags.join(' · ')}</p>
+      </div>
+      {canPlay && (
+        <button
+          className="icon-button"
+          aria-label={playing ? 'Pause soundtrack' : 'Play soundtrack'}
+          onClick={() => setPlaying(!playing)}
+        >
+          {playing ? <Pause size={18} /> : <Play size={18} />}
+        </button>
+      )}
+      <small>Original music generated for your tone and this moodboard, not their taste.</small>
+    </section>
   );
 }
 export interface ResultProps<T> {
@@ -285,7 +311,6 @@ export function RomanticView({
   config,
 }: ResultProps<RomanticResult>) {
   const song = getSong(data.song.catalogueId);
-  const songUrl = songSearchUrl(data.song.catalogueId);
   return (
     <div className="results">
       <div className="result-intro">
@@ -294,34 +319,7 @@ export function RomanticView({
         <Sources ids={data.summary.evidenceIds} evidence={evidence} />
       </div>
       <MoodboardView board={data.moodboard} evidence={evidence} />
-      {song && songUrl && (
-        <section className="song-card">
-          <div className="record">
-            <Music2 size={23} />
-          </div>
-          <div>
-            <span className="eyebrow">A soundtrack for this moodboard</span>
-            <h3>{song.title}</h3>
-            <p>{song.artist}</p>
-          </div>
-          <a
-            href={songUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={`Search for ${song.title} by ${song.artist}`}
-          >
-            <ArrowUpRight size={20} />
-          </a>
-          <p className="song-reason">{data.song.rationale.text}</p>
-          <Sources ids={data.song.rationale.evidenceIds} evidence={evidence} />
-          <small>Search link · a creative pick, not their stated music taste</small>
-          <AmbientMusic tone={String(config?.tone ?? 'warm')} tags={[...song.tags]} />
-          <small>
-            Playing original generated music for your chosen tone and this mood, not the song
-            itself.
-          </small>
-        </section>
-      )}
+      {song && <Soundtrack tone={String(config?.tone ?? 'warm')} tags={[...song.tags]} />}
       <section>
         <h2>The things they enjoy</h2>
         <Facts items={data.interests} evidence={evidence} />

@@ -128,9 +128,8 @@ test('both modes use the backend with current input and render boards, sources a
   await panel.getByLabel('I confirm that we are both adults (18+).').check();
   await panel.getByRole('button', { name: 'Generate ideas' }).click();
   await expect(panel.getByRole('heading', { name: 'Small pleasures, shared.' })).toBeVisible();
-  await expect(
-    panel.getByRole('link', { name: 'Search for Coffee by Sylvan Esso' }),
-  ).toHaveAttribute('href', /bandcamp.com\/search/);
+  await expect(panel.getByRole('button', { name: 'Pause soundtrack' })).toBeVisible();
+  await expect(panel.locator('.record.spinning')).toBeVisible();
   expect(calls).toHaveLength(2);
   expect(calls[1].mode).toBe('romantic');
   await panel.screenshot({ path: info.outputPath('romantic.png'), fullPage: true });

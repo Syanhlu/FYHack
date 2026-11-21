@@ -116,12 +116,6 @@ export const songs = [
 ];
 export const getAsset = (id: string) => assets.find((a) => a.id === id);
 export const getSong = (id: string) => songs.find((s) => s.id === id);
-export const songSearchUrl = (id: string) => {
-  const song = getSong(id);
-  return song
-    ? `https://bandcamp.com/search?q=${encodeURIComponent(`${song.artist} ${song.title}`)}&item_type=t`
-    : null;
-};
 export const promptCatalogue = {
   assets: assets.map(({ id, tags }) => ({ id, tags })),
   palettes: Object.keys(palettes),

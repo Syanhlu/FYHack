@@ -104,6 +104,29 @@ describe('local API', () => {
     expect(res.statusCode).toBe(502);
     expect(res.body).not.toContain('secret-provider-output');
   });
+  it('retries once when the model output fails verification, then gives up', async () => {
+    const bad = { ...output('outreach'), result: 'not-a-result' };
+    const once = vi.fn().mockResolvedValueOnce(bad).mockResolvedValue(output('outreach'));
+    const first = make({ provider: { generate: once } });
+    const ok = await first.app.inject({
+      method: 'POST',
+      url: '/v1/analyse',
+      headers,
+      payload: request(),
+    });
+    expect(ok.statusCode).toBe(200);
+    expect(once).toHaveBeenCalledTimes(2);
+    const always = vi.fn().mockResolvedValue(bad);
+    const second = make({ provider: { generate: always } });
+    const failed = await second.app.inject({
+      method: 'POST',
+      url: '/v1/analyse',
+      headers,
+      payload: request(),
+    });
+    expect(failed.statusCode).toBe(502);
+    expect(always).toHaveBeenCalledTimes(2);
+  });
   it('enforces a real deadline even if the provider ignores its abort signal', async () => {
     const { app } = make({
       timeoutMs: 10,

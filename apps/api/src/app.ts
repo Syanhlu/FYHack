@@ -172,25 +172,28 @@ export function buildApp(options: AppOptions) {
           );
         }, timeoutMs);
       });
-      const raw = await Promise.race([
-        options.provider.generate(mode, input, controller.signal),
-        deadline,
-      ]);
-      let result: Outcome;
-      try {
-        result = validateOutcome(mode, raw, input);
-      } catch (error) {
-        // Local diagnostics only: names the failed check, never the profile text.
-        console.warn(
-          `[${input.mode}] model output rejected: ${error instanceof Error ? error.message.slice(0, 500) : 'unknown'}`,
-        );
-        throw new ProviderFailure(
-          'MODEL_OUTPUT_INVALID',
-          502,
-          'The result could not be verified against this profile. Please retry.',
-        );
+      // Models occasionally break a citation rule. One fresh attempt usually passes, so retry
+      // once (inside the same deadline) before asking the user to.
+      for (let attempt = 1; ; attempt++) {
+        const raw = await Promise.race([
+          options.provider.generate(mode, input, controller.signal),
+          deadline,
+        ]);
+        try {
+          return envelope(validateOutcome(mode, raw, input));
+        } catch (error) {
+          // Local diagnostics only: names the failed check, never the profile text.
+          console.warn(
+            `[${input.mode}] model output rejected (attempt ${attempt}): ${error instanceof Error ? error.message.replace(/\s+/g, ' ').slice(0, 500) : 'unknown'}`,
+          );
+          if (attempt === 2)
+            throw new ProviderFailure(
+              'MODEL_OUTPUT_INVALID',
+              502,
+              'The result could not be verified against this profile. Please retry.',
+            );
+        }
       }
-      return envelope(result);
     } catch (error) {
       const failure =
         error instanceof ProviderFailure

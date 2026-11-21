@@ -189,7 +189,7 @@ For Romantic Pursue:
 
 1. Select **Romantic Pursue**. Switching modes keeps the reviewed input but discards the previous mode's result.
 2. Use an adult fictional profile for rehearsal. Confirm the adult eligibility checkbox only when its conditions apply, and set the tone, budget and indoor/outdoor preference.
-3. Generate and inspect date possibilities, invitation drafts, a moodboard and a soundtrack pick. The song link opens a search. Original ambient music, generated in the browser to match the pick's mood, starts with the result and has a pause button; the song itself is never played.
+3. Generate and inspect date possibilities, invitation drafts, a moodboard and a soundtrack pick. The soundtrack is original music generated in the browser for the chosen tone and the moodboard's mood; it starts with the result, the record spins while it plays, and it has a pause button. No recordings are played or linked.
 
 The sample page's **Meet Jamie** button changes the person. The extension should clear the old result, after which you read the new profile. For a third-party site, click the toolbar icon on that site's profile before reading. Extraction is best-effort; **Or paste profile text** is the fallback when the page structure is unsupported.
 
