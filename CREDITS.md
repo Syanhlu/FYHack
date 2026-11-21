@@ -18,3 +18,13 @@ Mood tags are editorial choices for this app, not artist statements. No recordin
 ## Generated soundtrack
 
 The Romantic Pursue soundtrack is original music synthesised in the browser by `apps/extension/src/services/music.ts` from the chosen tone and those mood tags. It uses no samples or recordings.
+
+## Romantic Pursue scrapbook
+
+The scrapbook board is drawn from the person's own analysed photos, which are held as local data URLs in the panel's memory for the session and are never fetched from the source site at render time. Frames, tape, paper scraps and background patterns are CSS written for this project.
+
+- Stickers are emoji drawn by the viewer's system font. No sticker artwork is bundled.
+- Fonts are bundled locally through the pinned Fontsource packages, each under the SIL Open Font License 1.1: DM Serif Display, Pinyon Script, Caveat, Special Elite and DM Sans.
+- PNG export uses the pinned `html-to-image` package (MIT).
+
+The 24 SVG illustrations above are still used by the Outreach mood board.

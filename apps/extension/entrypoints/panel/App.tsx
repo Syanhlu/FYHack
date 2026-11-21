@@ -29,6 +29,7 @@ import {
   type UserContext,
 } from '@profile-lens/contracts';
 import { ImageReview } from '../../src/components/ImageReview';
+import { forgetPhotoPreviews } from '../../src/services/photo-previews';
 import { profileSchema, type Evidence } from '@profile-lens/contracts';
 import { clientModes } from '../../src/modes';
 import { analyse, checkConnection } from '../../src/services/backend';
@@ -78,6 +79,7 @@ export default function App() {
   };
   const clear = (message = '') => {
     cancel();
+    forgetPhotoPreviews();
     release(currentSnapshot.current);
     currentSnapshot.current = null;
     setSnapshot(null);

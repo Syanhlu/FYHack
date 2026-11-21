@@ -15,7 +15,7 @@ export function request(mode = 'outreach'): AnalysisRequest {
     catalogueVersion: '1',
     requestId: crypto.randomUUID(),
     mode,
-    modeVersion: '1',
+    modeVersion: mode === 'romantic' ? '2' : '1',
     profile: manualProfile(sampleText, 'Alex'),
     userContext: [],
     modeConfig:
@@ -123,7 +123,7 @@ export function output(mode: string): Outcome {
     drafts: [
       { ...draft, id: 'romantic', text: 'Fancy a coffee and a browse in a bookshop sometime?' },
     ],
-    moodboard,
+    scrapbook: null,
     song: { catalogueId: 'coffee', rationale: cited, selectionKind: 'model_selected' },
   };
   return {
@@ -132,4 +132,55 @@ export function output(mode: string): Outcome {
     missingInformation: [],
     result: mode === 'romantic' ? romantic : outreach,
   };
+}
+
+// A romantic request with four analysed photos, and a result whose scrapbook uses them.
+export const photoIds = [1, 2, 3, 4].map((n) => `00000000-0000-4000-8000-00000000000${n}`);
+export function scrapbookCase() {
+  const input = request('romantic');
+  const scenes = [
+    'One person is the clear subject, facing the camera in daylight.',
+    'One person is the clear subject, seated at a cafe table.',
+    'A ceramic bowl on a pottery wheel in a studio.',
+    'A tram on a steep cobbled street.',
+  ];
+  input.profile.evidence.push(
+    ...scenes.map((text, i) => ({
+      id: `v${i + 1}`,
+      text,
+      sourceKind: 'visual' as const,
+      attribution: 'visual_observation' as const,
+      sectionLabel: `Photo ${i + 1}`,
+      sourceImageId: photoIds[i]!,
+      observationKind: 'scene' as const,
+    })),
+    {
+      id: 'v5',
+      text: 'A sign reads "Lisboa – Lisbon tram 28".',
+      sourceKind: 'visual',
+      attribution: 'visual_observation',
+      sectionLabel: 'Photo 4',
+      sourceImageId: photoIds[3]!,
+      observationKind: 'ocr',
+    },
+  );
+  const raw = output('romantic');
+  (raw.result as RomanticResult).scrapbook = {
+    boardTheme: 'soft-pastel',
+    name: 'Alex',
+    summary: {
+      text: 'Alex makes pots, rides bikes and loves a good bookshop.',
+      evidenceIds: ['e1'],
+    },
+    paletteId: 'blush',
+    portraits: [
+      { imageId: photoIds[0]!, caption: 'golden hour', evidenceIds: ['v1'] },
+      { imageId: photoIds[1]!, caption: null, evidenceIds: ['v2'] },
+    ],
+    travel: [{ imageId: photoIds[3]!, place: 'Lisbon, Portugal', evidenceIds: ['v4', 'v5'] }],
+    hobbies: [{ imageId: photoIds[2]!, label: 'pottery days', evidenceIds: ['v3'] }],
+    quote: { quoteText: 'I enjoy pottery', caption: 'In their words', evidenceIds: ['e2'] },
+    stickerIds: ['coffee', 'book', 'bike', 'palette', 'heart', 'sparkle'],
+  };
+  return { input, raw, board: (raw.result as RomanticResult).scrapbook! };
 }

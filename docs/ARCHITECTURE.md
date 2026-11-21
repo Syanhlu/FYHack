@@ -54,3 +54,12 @@ The injected reader prepares LinkedIn pages before extracting evidence: bounded 
 The snapshot listener owns a photo-discovery controller. After an explicit panel action it discovers post links in the Instagram profile grid, opens a post modal, advances photo slides, closes the post, and scrolls within bounded limits. It reports the dominant post-image geometry. Expected post-route changes are allowed only while the original profile header remains attached and unchanged; unrelated navigation invalidates the capture. The panel checks tab/identity and geometry around each viewport capture, crops locally, and sends only normalized photos to `/v1/analyse-images`. Three-photo batches and a 50-photo ceiling bound a run. Server-created run IDs, deduplication, deadlines, separate pacing, image decoding, and estimated-spend reservations protect provider calls.
 
 `ImageReview` shows thumbnails and separates observations from OCR; explicit acceptance adds schema-v2 visual evidence with a source image ID. Visual evidence cannot serve as an exact owner quote or substitute for meaningful text/adult confirmation. Session clearing removes photos and observations; stopping a run retains completed results for review. No raw image persistence or new host permissions are used.
+
+## Romantic Pursue scrapbook
+
+Romantic results carry a `scrapbook` (or `null`) instead of the tile mood board that Outreach still uses.
+
+- `packages/catalogues`: `boardThemes`, `scrapbookPalettes` and `stickers`. The model may only return IDs from these lists; `packages/contracts` builds the schema enums from them.
+- `apps/api/src/modes/index.ts`: the romantic prompt receives `photos` (each analysed photo's ID with the evidence that describes it) and the scrapbook catalogue. `prepare` then repairs the result before any check runs: it drops reused or unknown photos, places their cited evidence does not name, and dates outside the user's limits, and it sets the board to `null` when two portraits and a hobby photo do not survive.
+- `apps/extension/src/services/photo-previews.ts`: 512px local copies of analysed photos, keyed by image ID and cleared with the session. A board whose photos are gone renders a regenerate notice.
+- `apps/extension/src/components/moodboard/`: `layout.ts` places every piece from a fixed slot template with jitter seeded by the image IDs (no randomness at render time); `Scrapbook.tsx` and `scrapbook.css` draw it and export a PNG.

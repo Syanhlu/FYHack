@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { boardThemeIds, scrapbookPaletteIds, stickerIds } from '@profile-lens/catalogues';
 
 export const SCHEMA_VERSION = '2';
 export const CATALOGUE_VERSION = '1';
@@ -96,6 +97,28 @@ export const moodboardSchema = z
       .length(6),
   })
   .strict();
+// Romantic Pursue scrapbook: the model returns only catalogue IDs, photo IDs and short text.
+// A photo ID is the sourceImageId of that photo's visual evidence.
+const photoRef = { imageId: z.string().uuid(), evidenceIds: refs };
+export const scrapbookSchema = z
+  .object({
+    boardTheme: z.enum(boardThemeIds),
+    name: text(24),
+    summary: z.object({ text: text(250), evidenceIds: refs }).strict(),
+    paletteId: z.enum(scrapbookPaletteIds),
+    portraits: z.array(z.object({ ...photoRef, caption: text(60).nullable() }).strict()).length(2),
+    travel: z.array(z.object({ ...photoRef, place: text(60) }).strict()).max(2),
+    hobbies: z
+      .array(z.object({ ...photoRef, label: text(40) }).strict())
+      .min(1)
+      .max(2),
+    quote: z
+      .object({ quoteText: text(160).nullable(), caption: text(120), evidenceIds: refs })
+      .strict()
+      .nullable(),
+    stickerIds: z.array(z.enum(stickerIds)).min(6).max(10),
+  })
+  .strict();
 export const outreachResultSchema = z
   .object({
     summary: citedSchema,
@@ -141,7 +164,8 @@ export const romanticResultSchema = z
       .min(1)
       .max(3),
     drafts: z.array(draftSchema).min(1).max(2),
-    moodboard: moodboardSchema,
+    // null when the profile has too few analysed photos for a board.
+    scrapbook: scrapbookSchema.nullable(),
     song: z
       .object({
         catalogueId: text(60),
@@ -164,7 +188,7 @@ export const modeSchemas = {
       .strict(),
   },
   romantic: {
-    version: '1',
+    version: '2',
     result: romanticResultSchema,
     config: z
       .object({
@@ -233,6 +257,7 @@ export type Outcome = Pick<AnalysisResponse, 'status' | 'reason' | 'missingInfor
 export type CitedText = z.infer<typeof citedSchema>;
 export type Draft = z.infer<typeof draftSchema>;
 export type Moodboard = z.infer<typeof moodboardSchema>;
+export type Scrapbook = z.infer<typeof scrapbookSchema>;
 export type OutreachResult = z.infer<typeof outreachResultSchema>;
 export type RomanticResult = z.infer<typeof romanticResultSchema>;
 export type LocalSnapshot = {

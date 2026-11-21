@@ -121,3 +121,142 @@ export const promptCatalogue = {
   palettes: Object.keys(palettes),
   songs: songs.map(({ id, title, artist, tags }) => ({ id, title, artist, tags })),
 };
+
+// ── Romantic Pursue scrapbook ────────────────────────────────────────────────
+// Everything the model may choose for the scrapbook board is an ID from these lists.
+// Colour order in every palette: paper, accent, second accent, ink.
+export const scrapbookPalettes = {
+  blush: {
+    mood: 'soft pink, sage and plum',
+    colours: ['#fbeef0', '#b54468', '#8fae9b', '#4a2c3a'],
+  },
+  meadow: {
+    mood: 'cream, leaf green and tomato red',
+    colours: ['#f7f3e3', '#487a3b', '#d9583e', '#2f3b26'],
+  },
+  cherry: {
+    mood: 'pale pink, cherry red and forest green',
+    colours: ['#fdf1ee', '#c2273d', '#2f6b4f', '#2a1a1c'],
+  },
+  sepia: {
+    mood: 'aged paper, rust and faded teal',
+    colours: ['#f1e6d0', '#a8552f', '#5b7f7a', '#3a2a1c'],
+  },
+  sky: {
+    mood: 'cloud white, cornflower blue and butter yellow',
+    colours: ['#f2f6fb', '#4a74c9', '#e0a92e', '#1f2b45'],
+  },
+  neon: {
+    mood: 'off-white, hot pink and black with acid green',
+    colours: ['#f4f4ee', '#d90077', '#4f8f00', '#111111'],
+  },
+} as const;
+export type ScrapbookPaletteId = keyof typeof scrapbookPalettes;
+
+// pattern, frame and font names are CSS hooks implemented in components/moodboard.
+export const boardThemes = {
+  'soft-pastel': {
+    tags: ['dreamy', 'romantic', 'soft', 'floral'],
+    pattern: 'linen',
+    titleFont: 'serif',
+    bodyFont: 'hand',
+    frames: ['polaroid', 'torn'],
+    palette: 'blush',
+    stickers: ['peony', 'rose', 'daisy', 'heart', 'sparkle'],
+  },
+  'gingham-cottage': {
+    tags: ['cosy', 'playful', 'homely', 'outdoorsy'],
+    pattern: 'gingham',
+    titleFont: 'serif',
+    bodyFont: 'hand',
+    frames: ['rounded', 'polaroid'],
+    palette: 'meadow',
+    stickers: ['clover', 'apple', 'button', 'mushroom', 'daisy'],
+  },
+  'plaid-y2k': {
+    tags: ['cute', 'chaotic', 'bright', 'pop'],
+    pattern: 'plaid',
+    titleFont: 'script',
+    bodyFont: 'hand',
+    frames: ['scallop', 'polaroid'],
+    palette: 'cherry',
+    stickers: ['cherry', 'star', 'sparkle', 'bow', 'heart'],
+  },
+  'journal-vintage': {
+    tags: ['nostalgic', 'introspective', 'bookish', 'quiet'],
+    pattern: 'aged',
+    titleFont: 'typewriter',
+    bodyFont: 'typewriter',
+    frames: ['torn', 'polaroid'],
+    palette: 'sepia',
+    stickers: ['leaf', 'book', 'key', 'moon', 'envelope'],
+  },
+  'bold-street': {
+    tags: ['edgy', 'sporty', 'loud', 'urban'],
+    pattern: 'checker',
+    titleFont: 'serif',
+    bodyFont: 'sans',
+    frames: ['polaroid', 'rounded'],
+    palette: 'neon',
+    stickers: ['star', 'lightning', 'fire', 'sneaker', 'music'],
+  },
+} as const;
+export type BoardThemeId = keyof typeof boardThemes;
+
+// Emoji stickers: drawn by the system font, so nothing is fetched or bundled.
+export const stickers = {
+  peony: { emoji: '🌸', tags: ['flowers', 'soft'] },
+  rose: { emoji: '🌹', tags: ['flowers', 'romantic'] },
+  daisy: { emoji: '🌼', tags: ['flowers', 'sunny'] },
+  tulip: { emoji: '🌷', tags: ['flowers', 'spring'] },
+  leaf: { emoji: '🍂', tags: ['nature', 'autumn'] },
+  clover: { emoji: '🍀', tags: ['nature', 'luck'] },
+  mushroom: { emoji: '🍄', tags: ['nature', 'cottage'] },
+  heart: { emoji: '💗', tags: ['love'] },
+  sparkle: { emoji: '✨', tags: ['shine'] },
+  star: { emoji: '⭐', tags: ['shine', 'bold'] },
+  moon: { emoji: '🌙', tags: ['night', 'dreamy'] },
+  sun: { emoji: '☀️', tags: ['sunshine', 'outdoors'] },
+  bow: { emoji: '🎀', tags: ['cute'] },
+  cherry: { emoji: '🍒', tags: ['fruit', 'cute'] },
+  apple: { emoji: '🍎', tags: ['fruit', 'cottage'] },
+  strawberry: { emoji: '🍓', tags: ['fruit', 'sweet'] },
+  coffee: { emoji: '☕', tags: ['coffee', 'cafe'] },
+  cake: { emoji: '🍰', tags: ['baking', 'food'] },
+  pizza: { emoji: '🍕', tags: ['food'] },
+  book: { emoji: '📚', tags: ['reading', 'study'] },
+  camera: { emoji: '📷', tags: ['photography'] },
+  palette: { emoji: '🎨', tags: ['art', 'painting'] },
+  music: { emoji: '🎵', tags: ['music'] },
+  guitar: { emoji: '🎸', tags: ['music', 'band'] },
+  plane: { emoji: '✈️', tags: ['travel'] },
+  globe: { emoji: '🌍', tags: ['travel'] },
+  mountain: { emoji: '⛰️', tags: ['hiking', 'outdoors'] },
+  wave: { emoji: '🌊', tags: ['beach', 'swimming', 'surf'] },
+  bike: { emoji: '🚲', tags: ['cycling'] },
+  football: { emoji: '⚽', tags: ['football', 'sport'] },
+  tennis: { emoji: '🎾', tags: ['tennis', 'sport'] },
+  sneaker: { emoji: '👟', tags: ['running', 'street'] },
+  dog: { emoji: '🐶', tags: ['dogs', 'pets'] },
+  cat: { emoji: '🐱', tags: ['cats', 'pets'] },
+  plant: { emoji: '🪴', tags: ['plants', 'home'] },
+  game: { emoji: '🎮', tags: ['gaming'] },
+  film: { emoji: '🎬', tags: ['films'] },
+  lightning: { emoji: '⚡', tags: ['energy', 'bold'] },
+  fire: { emoji: '🔥', tags: ['energy', 'bold'] },
+  key: { emoji: '🗝️', tags: ['vintage'] },
+  envelope: { emoji: '💌', tags: ['letters', 'vintage'] },
+  button: { emoji: '🧵', tags: ['craft', 'sewing'] },
+} as const;
+export type StickerId = keyof typeof stickers;
+
+const ids = <T extends object>(value: T) =>
+  Object.keys(value) as [keyof T & string, ...(keyof T & string)[]];
+export const boardThemeIds = ids(boardThemes);
+export const scrapbookPaletteIds = ids(scrapbookPalettes);
+export const stickerIds = ids(stickers);
+export const scrapbookCatalogue = {
+  themes: boardThemeIds.map((id) => ({ id, tags: boardThemes[id].tags })),
+  palettes: scrapbookPaletteIds.map((id) => ({ id, mood: scrapbookPalettes[id].mood })),
+  stickers: stickerIds.map((id) => ({ id, tags: stickers[id].tags })),
+};

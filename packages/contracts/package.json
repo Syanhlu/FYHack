@@ -4,6 +4,7 @@
   "type": "module",
   "exports": "./src/index.ts",
   "dependencies": {
+    "@profile-lens/catalogues": "workspace:*",
     "zod": "4.6.7"
   }
 }

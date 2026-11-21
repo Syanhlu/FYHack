@@ -8,6 +8,7 @@ import {
 } from '@profile-lens/contracts';
 import type { PhotoCandidate, PhotoScan } from '../extraction/images';
 import { isCurrent } from './browser';
+import { keepPhotoPreview } from './photo-previews';
 import { API_BASE, checkConnection } from './backend';
 
 export type PhotoReview = {
@@ -16,6 +17,16 @@ export type PhotoReview = {
   observations: ImageObservation[];
 };
 export type PhotoSkipReason = { reason: string; count: number };
+const scaled = (source: HTMLCanvasElement, longest: number, quality: number) => {
+  const ratio = Math.min(1, longest / Math.max(source.width, source.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(source.width * ratio));
+  canvas.height = Math.max(1, Math.round(source.height * ratio));
+  canvas.getContext('2d')!.drawImage(source, 0, 0, canvas.width, canvas.height);
+  const dataUrl = canvas.toDataURL('image/jpeg', quality);
+  canvas.width = canvas.height = 0;
+  return dataUrl;
+};
 const BUSY_WAIT_LIMIT_MS = 120000;
 class PhotoRequestError extends Error {
   constructor(
@@ -130,26 +141,22 @@ export async function cropPhoto(screenshot: string, scan: PhotoScan, photo: Phot
   image.src = '';
   const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
   if (dataUrl.length > 1398127) throw new Error('This photo crop exceeds the size limit.');
-  const thumb = document.createElement('canvas');
-  thumb.width = Math.max(
-    1,
-    Math.round(canvas.width * Math.min(1, 160 / Math.max(canvas.width, canvas.height))),
-  );
-  thumb.height = Math.max(
-    1,
-    Math.round(canvas.height * Math.min(1, 160 / Math.max(canvas.width, canvas.height))),
-  );
-  thumb.getContext('2d')!.drawImage(canvas, 0, 0, thumb.width, thumb.height);
-  const thumbnail = thumb.toDataURL('image/jpeg', 0.65);
-  canvas.width = canvas.height = thumb.width = thumb.height = 0;
-  return { dataUrl, thumbnail };
+  const thumbnail = scaled(canvas, 160, 0.65);
+  const preview = scaled(canvas, 512, 0.8);
+  canvas.width = canvas.height = 0;
+  return { dataUrl, thumbnail, preview };
 }
 export async function analyseProfileImages(
   snapshot: LocalSnapshot,
   token: string,
   signal: AbortSignal,
   onBatch: (photos: PhotoReview[], count: number) => void,
-  operations = { crop: cropPhoto, wait: delay },
+  operations: {
+    crop: (
+      ...args: Parameters<typeof cropPhoto>
+    ) => Promise<{ dataUrl: string; thumbnail: string; preview?: string }>;
+    wait: typeof delay;
+  } = { crop: cropPhoto, wait: delay },
   onProgress?: (message: string, skips: PhotoSkipReason[]) => void,
   maxPhotos: number = IMAGE_LIMIT,
 ): Promise<string> {
@@ -203,7 +210,7 @@ export async function analyseProfileImages(
   const captureAttempts = new Map<string, number>();
   const seen = new Set<string>(),
     sources = new Set<string>();
-  let batch: { id: string; dataUrl: string; thumbnail: string }[] = [];
+  let batch: { id: string; dataUrl: string; thumbnail: string; preview?: string }[] = [];
   let reason = 'Reached the discovery limit.';
   const skipReasons = new Map<string, number>();
   const skipSummary = () =>
@@ -302,6 +309,7 @@ export async function analyseProfileImages(
       throw new Error('Photo response did not match this batch.');
     if (response.status === 'blocked') throw new Error(response.reason);
     count += batch.length;
+    for (const photo of batch) keepPhotoPreview(photo.id, photo.preview ?? photo.thumbnail);
     onBatch(
       batch.map((p) => ({
         id: p.id,

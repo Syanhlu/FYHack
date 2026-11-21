@@ -1,0 +1,395 @@
+/* Romantic Pursue scrapbook. Sizes are in cqw so the 4:5 board scales with the panel.
+   Themes set a pattern and fonts; palettes set the four --sb-* colours, so any theme
+   works with any palette. */
+.scrapbook {
+  --sb-title: 'DM Serif Display', Georgia, serif;
+  --sb-body: 'Caveat', 'Comic Sans MS', cursive;
+  --sb-label: 'DM Sans', system-ui, sans-serif;
+  position: relative;
+  container-type: inline-size;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  isolation: isolate;
+  margin-top: 10px;
+  border-radius: 8px;
+  background-color: var(--sb-paper);
+  color: var(--sb-ink);
+}
+.sb-title-script {
+  --sb-title: 'Pinyon Script', 'Brush Script MT', cursive;
+}
+.sb-title-typewriter {
+  --sb-title: 'Special Elite', 'Courier New', monospace;
+}
+.sb-body-typewriter {
+  --sb-body: 'Special Elite', 'Courier New', monospace;
+}
+.sb-body-sans {
+  --sb-body: 'DM Sans', system-ui, sans-serif;
+}
+
+/* ── Background patterns ─────────────────────────────────────────────── */
+.sb-pattern-linen {
+  background-image:
+    repeating-linear-gradient(0deg, #0000000b 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, #0000000b 0 1px, transparent 1px 3px),
+    radial-gradient(
+      circle at 20% 15%,
+      color-mix(in srgb, var(--sb-accent) 22%, transparent),
+      transparent 55%
+    );
+}
+.sb-pattern-gingham {
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      color-mix(in srgb, var(--sb-accent) 30%, transparent) 0 4cqw,
+      transparent 4cqw 8cqw
+    ),
+    repeating-linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--sb-accent) 30%, transparent) 0 4cqw,
+      transparent 4cqw 8cqw
+    );
+}
+.sb-pattern-plaid {
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      color-mix(in srgb, var(--sb-accent) 34%, transparent) 0 6cqw,
+      transparent 6cqw 14cqw
+    ),
+    repeating-linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--sb-accent) 34%, transparent) 0 6cqw,
+      transparent 6cqw 14cqw
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 9.5cqw,
+      color-mix(in srgb, var(--sb-second) 60%, transparent) 9.5cqw 10.5cqw,
+      transparent 10.5cqw 14cqw
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 9.5cqw,
+      color-mix(in srgb, var(--sb-second) 60%, transparent) 9.5cqw 10.5cqw,
+      transparent 10.5cqw 14cqw
+    );
+}
+.sb-pattern-aged {
+  background-image:
+    radial-gradient(ellipse at center, transparent 45%, #6b4a2233 100%),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 5.4cqw,
+      color-mix(in srgb, var(--sb-ink) 14%, transparent) 5.4cqw 5.6cqw
+    );
+}
+.sb-pattern-checker {
+  background-image: repeating-conic-gradient(
+    color-mix(in srgb, var(--sb-ink) 16%, transparent) 0 25%,
+    transparent 0 50%
+  );
+  background-size: 12cqw 12cqw;
+}
+/* Paper grain over everything, including the photos. */
+.scrapbook::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  opacity: 0.22;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .4 0 0 0 0 .35 0 0 0 0 .3 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ── Shared pieces ───────────────────────────────────────────────────── */
+.sb-item {
+  position: absolute;
+  margin: 0;
+  /* drop-shadow follows torn and scalloped outlines; box-shadow would be clipped away. */
+  filter: drop-shadow(0 0.8cqw 1.2cqw #00000047);
+}
+.sb-frame {
+  background: #fffdf8;
+}
+.sb-frame img {
+  display: block;
+  width: 100%;
+  object-fit: cover;
+  /* Faces usually sit in the upper part of a photo. */
+  object-position: 50% 28%;
+  aspect-ratio: 4 / 5;
+  filter: saturate(0.86) contrast(0.95) sepia(0.14) brightness(1.04);
+}
+.sb-polaroid .sb-frame {
+  padding: 1.6cqw 1.6cqw 5.2cqw;
+}
+.sb-rounded .sb-frame {
+  padding: 1.2cqw;
+  border-radius: 4.5cqw;
+}
+.sb-rounded img {
+  border-radius: 3.4cqw;
+}
+.sb-torn .sb-frame {
+  padding: 2.2cqw 1.6cqw;
+  clip-path: polygon(
+    0 1.6%,
+    4% 0.2%,
+    9% 1.8%,
+    15% 0.3%,
+    21% 1.5%,
+    28% 0%,
+    34% 1.4%,
+    41% 0.2%,
+    48% 1.7%,
+    55% 0.4%,
+    62% 1.6%,
+    69% 0.1%,
+    76% 1.5%,
+    83% 0.3%,
+    90% 1.7%,
+    96% 0.4%,
+    100% 1.4%,
+    100% 98.6%,
+    95% 99.8%,
+    89% 98.4%,
+    82% 99.7%,
+    75% 98.5%,
+    68% 100%,
+    61% 98.6%,
+    54% 99.8%,
+    47% 98.3%,
+    40% 99.6%,
+    33% 98.4%,
+    26% 100%,
+    19% 98.5%,
+    12% 99.7%,
+    6% 98.4%,
+    0 99.5%
+  );
+}
+/* Postage-stamp edge: a ring of punched holes around the frame. */
+.sb-scallop .sb-frame {
+  --hole: 1.1cqw;
+  --tile: calc(var(--hole) * 3.2);
+  padding: calc(var(--hole) * 2);
+  /* A solid middle plus a ring of tiles whose centres, sitting on the edge, are punched. */
+  mask:
+    linear-gradient(#000 0 0) center / calc(100% - var(--hole) * 2.4) calc(100% - var(--hole) * 2.4)
+      no-repeat,
+    radial-gradient(circle at center, #0000 var(--hole), #000 calc(var(--hole) + 0.5px))
+      calc(var(--tile) / -2) calc(var(--tile) / -2) / var(--tile) var(--tile) round;
+}
+.sb-oval .sb-frame {
+  padding: 1.2cqw;
+  border-radius: 50%;
+}
+.sb-oval img {
+  border-radius: 50%;
+}
+/* Hobby and travel photos are square so the bottom band stays even. */
+.sb-small img {
+  aspect-ratio: 1;
+  object-position: center;
+}
+.sb-tape {
+  position: absolute;
+  z-index: 2;
+  top: -2cqw;
+  left: 50%;
+  width: 15cqw;
+  height: 4.2cqw;
+  translate: -50% 0;
+  rotate: -4deg;
+  opacity: 0.86;
+  background:
+    repeating-linear-gradient(90deg, #ffffff66 0 1cqw, transparent 1cqw 2cqw), var(--sb-second);
+}
+/* Highlighter caption strips: white text on ink or accent. */
+.sb-label {
+  position: absolute;
+  z-index: 3;
+  left: -1.5cqw;
+  bottom: 1.2cqw;
+  max-width: 100%;
+  padding: 0.5cqw 1.6cqw;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  background: var(--sb-ink);
+  color: #fff;
+  font: 700 2.5cqw/1.3 var(--sb-label);
+  letter-spacing: 0.04em;
+  rotate: -2deg;
+}
+.sb-label-accent {
+  background: var(--sb-accent);
+}
+/* Notes overlap the foot of the portraits, so their captions sit higher up. */
+.sb-photo:not(.sb-small) .sb-label {
+  bottom: 14cqw;
+}
+
+/* ── Name ────────────────────────────────────────────────────────────── */
+.sb-name {
+  position: absolute;
+  z-index: 8;
+  top: 2.5cqw;
+  left: 4cqw;
+  max-width: 92cqw;
+  margin: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 0 1cqw 1.5cqw;
+  font-family: var(--sb-title);
+  font-weight: 400;
+  line-height: 1.05;
+  rotate: -3deg;
+  color: var(--sb-accent);
+  /* A paper-coloured edge keeps the name readable where it crosses a photo. */
+  -webkit-text-stroke: 1.1cqw var(--sb-paper);
+  paint-order: stroke fill;
+  text-shadow: 0.5cqw 0.6cqw 0 color-mix(in srgb, var(--sb-ink) 45%, transparent);
+}
+.sb-name-xl {
+  font-size: 22cqw;
+}
+.sb-name-lg {
+  font-size: 14.5cqw;
+}
+.sb-name-md {
+  font-size: 9.5cqw;
+}
+.sb-title-script .sb-name {
+  line-height: 1.25;
+}
+.sb-title-typewriter .sb-name {
+  font-size-adjust: 0.42;
+}
+
+/* ── Notes ───────────────────────────────────────────────────────────── */
+.sb-scrap {
+  padding: 3.2cqw 3.4cqw;
+  background: #fffdf8;
+  clip-path: polygon(
+    0 3%,
+    5% 0,
+    11% 3.5%,
+    18% 0.5%,
+    25% 3%,
+    33% 0,
+    40% 2.8%,
+    48% 0.4%,
+    56% 3.2%,
+    64% 0.6%,
+    72% 3%,
+    80% 0.2%,
+    88% 2.9%,
+    95% 0.5%,
+    100% 3%,
+    100% 97%,
+    94% 100%,
+    87% 96.8%,
+    79% 99.6%,
+    71% 97%,
+    63% 100%,
+    55% 96.9%,
+    47% 99.5%,
+    39% 97.2%,
+    31% 100%,
+    23% 97%,
+    15% 99.6%,
+    8% 96.8%,
+    0 99%
+  );
+}
+.sb-scrap p,
+.sb-sticky p {
+  margin: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: var(--sb-ink);
+  font-family: var(--sb-body);
+}
+.sb-scrap p {
+  -webkit-line-clamp: 6;
+  font-size: 4.3cqw;
+  line-height: 1.12;
+}
+.sb-body-typewriter .sb-scrap p,
+.sb-body-sans .sb-scrap p {
+  font-size: 2.9cqw;
+  line-height: 1.35;
+}
+.sb-sticky {
+  padding: 4cqw 2.6cqw 2.8cqw;
+  background: color-mix(in srgb, var(--sb-second) 32%, #fffbe6);
+}
+.sb-sticky p {
+  -webkit-line-clamp: 6;
+  font:
+    2.7cqw/1.4 'Special Elite',
+    'Courier New',
+    monospace;
+}
+.sb-pin {
+  position: absolute;
+  top: 1cqw;
+  left: 50%;
+  width: 2.6cqw;
+  height: 2.6cqw;
+  translate: -50% 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff9, transparent 45%), var(--sb-accent);
+  box-shadow: 0.3cqw 0.5cqw 0.6cqw #00000055;
+}
+
+/* ── Palette chips and stickers ──────────────────────────────────────── */
+.sb-swatches {
+  position: absolute;
+  z-index: 9;
+  left: 50%;
+  bottom: 1.6cqw;
+  display: flex;
+  gap: 1cqw;
+  translate: -50% 0;
+  rotate: -1.5deg;
+}
+.sb-swatches span {
+  width: 6cqw;
+  height: 4.2cqw;
+  border: 0.6cqw solid #fffdf8;
+  box-shadow: 0 0.4cqw 0.8cqw #00000040;
+}
+/* Die-cut look: a white edge all the way round each emoji. */
+.sb-sticker {
+  position: absolute;
+  z-index: 10;
+  line-height: 1;
+  user-select: none;
+  text-shadow:
+    0.4cqw 0 #fff,
+    -0.4cqw 0 #fff,
+    0 0.4cqw #fff,
+    0 -0.4cqw #fff,
+    0.3cqw 0.3cqw #fff,
+    -0.3cqw 0.3cqw #fff,
+    0.3cqw -0.3cqw #fff,
+    -0.3cqw -0.3cqw #fff,
+    0 0.9cqw 1cqw #00000040;
+}
+.sb-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+.sb-actions .hint {
+  margin: 0;
+}

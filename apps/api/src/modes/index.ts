@@ -4,8 +4,18 @@ import {
   wireSchema,
   type AnalysisRequest,
   type Outcome,
+  type RomanticResult,
 } from '@profile-lens/contracts';
-import { getAsset, getSong, palettes, promptCatalogue } from '@profile-lens/catalogues';
+import {
+  getAsset,
+  getSong,
+  palettes,
+  promptCatalogue,
+  scrapbookCatalogue,
+  scrapbookPalettes,
+  boardThemes,
+  stickerIds,
+} from '@profile-lens/catalogues';
 import type { z } from 'zod';
 
 export interface ServerMode {
@@ -16,7 +26,21 @@ export interface ServerMode {
   instructions: string;
   eligibility: (input: AnalysisRequest) => Outcome | null;
   validate?: (result: unknown, input: AnalysisRequest) => string[];
+  /** Adjusts a schema-valid result before its references are checked. */
+  prepare?: (result: unknown, input: AnalysisRequest) => void;
+  /** Extra data for the model, merged into the user message. */
+  promptData?: (input: AnalysisRequest) => Record<string, unknown>;
 }
+/** Analysed photos by ID, each with the evidence that describes it. */
+export function photosOf(input: AnalysisRequest) {
+  const photos = new Map<string, string[]>();
+  for (const e of input.profile.evidence)
+    if (e.sourceImageId)
+      photos.set(e.sourceImageId, [...(photos.get(e.sourceImageId) ?? []), e.id]);
+  return photos;
+}
+const MIN_BOARD_PHOTOS = 3; // two portraits and at least one hobby photo
+const costRank = { free: 0, low: 1, moderate: 2 };
 const blocked = (reason: string): Outcome => ({
   status: 'blocked',
   reason,
@@ -86,12 +110,84 @@ export const serverModes: Record<string, ServerMode> = {
       Write invitations and drafts in the chosen tone: warm (kind, direct), playful (light, a little teasing), heartfelt (sincere, earnest),
       confident (bold, clear ask, never pushy) or relaxed (casual, no pressure). Every tone stays respectful and easy to decline.
       Honour the user's budget and setting preference. Cost order is free < low < moderate: every date's costBand, including its alternative, must be at or below the budget. Provide 2 short invitation drafts, each under 320 characters.
-      Build a warm Pinterest-style board. Pick exactly one catalogue song as the board's soundtrack, never as their favourite music.
+      Pick exactly one catalogue song as the soundtrack, never as their favourite music.
+      SCRAPBOOK: also build a scrapbook board from their own photos. photos lists every analysed photo as an imageId with the evidence IDs that describe it; use only those imageIds, each at most once across the whole board, and cite at least one of that photo's own evidence IDs on it.
+      If photos has fewer than ${MIN_BOARD_PHOTOS} entries, set scrapbook to null and still complete the rest of the result. With ${MIN_BOARD_PHOTOS} or more photos, always build the board.
+      Pick the boardTheme, paletteId and 6–10 stickerIds from catalogues.scrapbook that fit this person's vibe and stated interests.
+      name: their first name or display name as given in the profile text (max 24 characters); use the handle if no name is given. Never guess a name.
+      summary: a warm, kind 1–2 sentence note (35 words at most) about what they share and enjoy. Never comment on looks or body, and never expose contact details, addresses or routines.
+      portraits: exactly 2 photos. Prefer ones whose evidence says a person is the clear subject, with a visible face and good light; if none say so, use the two photos that most plausibly show a person or feel most personal. This is a layout choice, not an identification.
+      hobbies: 1–2 photos of an activity or interest with a playful label of at most 6 words, such as "weekend hikes".
+      travel: 0–2 photos with place as "City, Country", only when the cited evidence itself names that city. No named place in the evidence means no travel item; never guess a location from scenery.
+      quote: a short exact quote from their own profile text with quoteText, or null. Never quote photo text as theirs.
+      Leave out any section the evidence cannot support instead of inventing content.
       Do not infer attraction, sexuality, relationship status, hidden personality traits, or exact routines/whereabouts.`,
+    promptData: (input) => ({
+      photos: [...photosOf(input)].map(([imageId, evidenceIds]) => ({ imageId, evidenceIds })),
+      scrapbookCatalogue,
+    }),
+    // Repairs before any check runs. One bad piece is left out instead of failing the whole
+    // result: a date outside the user's limits, a reused or unknown photo, a place the
+    // evidence does not name. A board without its required pieces becomes no board.
+    prepare: (result, input) => {
+      const r = result as RomanticResult;
+      const config = modeSchemas.romantic.config.parse(input.modeConfig);
+      const fits = r.dateIdeas.filter(
+        (d) =>
+          costRank[d.costBand] <= costRank[config.budget] &&
+          (config.settingPreference === 'either' ||
+            d.setting === 'either' ||
+            d.setting === config.settingPreference),
+      );
+      if (fits.length) r.dateIdeas = fits;
+      const board = r.scrapbook;
+      const photos = photosOf(input);
+      // Local diagnostics only: counts, never profile content.
+      const note = (why: string) =>
+        console.warn(`[romantic] no scrapbook: ${why} (${photos.size} analysed photos)`);
+      if (!board)
+        return note(photos.size < MIN_BOARD_PHOTOS ? 'too few photos' : 'model returned none');
+      const text = new Map(input.profile.evidence.map((e) => [e.id, loose(e.text).toLowerCase()]));
+      const seen = new Set<string>();
+      const usable = <T extends { imageId: string; evidenceIds: string[] }>(items: T[]) =>
+        items.filter((item) => {
+          const own = photos.get(item.imageId);
+          if (!own || seen.has(item.imageId)) return false;
+          seen.add(item.imageId);
+          // A photo's own observations are its evidence by definition.
+          if (!item.evidenceIds.some((id) => own.includes(id)))
+            item.evidenceIds = [own[0]!, ...item.evidenceIds].slice(0, 30);
+          return true;
+        });
+      board.portraits = usable(board.portraits);
+      board.hobbies = usable(board.hobbies);
+      // A place is only shown when the evidence cited for it names the city.
+      board.travel = usable(board.travel).filter((trip) => {
+        const city = loose(trip.place.split(',')[0]!).toLowerCase();
+        return city.length >= 3 && trip.evidenceIds.some((id) => text.get(id)?.includes(city));
+      });
+      board.stickerIds = [
+        ...new Set([...board.stickerIds, ...boardThemes[board.boardTheme].stickers, ...stickerIds]),
+      ].slice(0, Math.max(6, new Set(board.stickerIds).size));
+      // Never show an invented name: fall back to the name the profile was read under.
+      const known = [...text]
+        .filter(([id]) => !input.profile.evidence.find((e) => e.id === id)?.sourceImageId)
+        .map(([, value]) => value)
+        .concat(loose(input.profile.displayName ?? '').toLowerCase())
+        .join(' ');
+      const name = loose(board.name).replace(/^@/, '').toLowerCase();
+      if (!name || !known.includes(name))
+        board.name = (input.profile.displayName ?? 'Someone new').slice(0, 24);
+      if (photos.size < MIN_BOARD_PHOTOS || board.portraits.length !== 2 || !board.hobbies.length) {
+        note(
+          `${board.portraits.length} usable portraits, ${board.hobbies.length} usable hobby photos`,
+        );
+        r.scrapbook = null;
+      }
+    },
     validate: (result, input) => {
       const r = modeSchemas.romantic.result.parse(result);
       const config = modeSchemas.romantic.config.parse(input.modeConfig);
-      const cost = { free: 0, low: 1, moderate: 2 };
       const errors: string[] = [];
       if (!getSong(r.song.catalogueId)) errors.push('Unknown song.');
       if (
@@ -99,7 +195,7 @@ export const serverModes: Record<string, ServerMode> = {
         r.dateIdeas.some((d) => d.invitation.text.length > 320)
       )
         errors.push('Invitation too long.');
-      if (r.dateIdeas.some((d) => cost[d.costBand] > cost[config.budget]))
+      if (r.dateIdeas.some((d) => costRank[d.costBand] > costRank[config.budget]))
         errors.push('Date exceeds budget preference.');
       if (
         config.settingPreference !== 'either' &&
@@ -138,7 +234,7 @@ Creative suggestions are possibilities, not personality assessments or predictio
 Never infer sensitive traits, vulnerabilities, attraction, willingness to date, or patterns of whereabouts.
 Return insufficient for sparse evidence and blocked for ineligible requests; then result must be null and explain briefly in reason.
 For ready: result must match the mode schema, reason is empty, and missingInformation is empty.
-Moodboard: exactly 6 tiles: 3 image tiles, 1 typography, 1 quote or paraphrase, 1 palette. Select allowed IDs only.
+Moodboard (only when the result schema has a moodboard field): exactly 6 tiles: 3 image tiles, 1 typography, 1 quote or paraphrase, 1 palette. Select allowed IDs only.
 The board is laid out as a collage poster: its title is the cover headline (1–4 punchy words, no full stop), the typography tile's title is a 2–5 word phrase, and image tile titles are 1–3 word labels.
 Each tile explains the source connection. Image tiles need an assetId; other tiles use null. Use diverse assets.
 quoteText must be an EXACT substring of referenced evidence, at most 200 characters, or null for a paraphrase.
@@ -157,6 +253,7 @@ export function promptFor(mode: ServerMode, input: AnalysisRequest) {
         userContext: input.userContext,
         preferences: input.modeConfig,
         catalogues: promptCatalogue,
+        ...mode.promptData?.(input),
       }),
     },
   ];
@@ -230,10 +327,15 @@ export function validateOutcome(mode: ServerMode, raw: unknown, input: AnalysisR
       errors.push('Unknown image.');
     if ('assetId' in obj && obj.kind !== 'image' && obj.assetId !== null)
       errors.push('Unexpected asset on a non-image tile.');
-    if (typeof obj.paletteId === 'string' && !Object.hasOwn(palettes, obj.paletteId))
+    if (
+      typeof obj.paletteId === 'string' &&
+      !Object.hasOwn(palettes, obj.paletteId) &&
+      !Object.hasOwn(scrapbookPalettes, obj.paletteId)
+    )
       errors.push('Unknown palette.');
     Object.values(obj).forEach(walk);
   }
+  mode.prepare?.(parsed.result, input);
   walk(parsed.result);
   errors.push(...(mode.validate?.(parsed.result, input) ?? []));
   if (errors.length) throw new Error(errors.join(' '));

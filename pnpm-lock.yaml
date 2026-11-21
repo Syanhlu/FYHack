@@ -101,6 +101,21 @@ importers:
 
   apps/extension:
     dependencies:
+      '@fontsource/caveat':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/dm-sans':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/dm-serif-display':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/pinyon-script':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/special-elite':
+        specifier: 5.3.0
+        version: 5.3.0
       '@profile-lens/catalogues':
         specifier: workspace:*
         version: link:../../packages/catalogues
@@ -110,6 +125,9 @@ importers:
       '@wxt-dev/module-react':
         specifier: 1.2.2
         version: 1.2.2(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))(wxt@0.21.5(esbuild@0.28.2)(eslint@10.15.0(jiti@2.7.0))(rolldown@1.2.19)(typescript@7.0.2)(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)))
+      html-to-image:
+        specifier: 1.11.13
+        version: 1.11.13
       lucide-react:
         specifier: 1.77.0
         version: 1.77.0(@types/react@19.3.0)(react@19.3.1)
@@ -130,6 +148,9 @@ importers:
 
   packages/contracts:
     dependencies:
+      '@profile-lens/catalogues':
+        specifier: workspace:*
+        version: link:../catalogues
       zod:
         specifier: 4.6.7
         version: 4.6.7
@@ -425,6 +446,21 @@ packages:
 
   '@fastify/proxy-addr@5.1.3':
     resolution: {integrity: sha512-ptgIgB+abBNTs5lsKNvFaKMCauPaTOE6ZIjxJr3FxCLehmYQQKYGg4srwwNICR9QQlFrYw59jWAo+i9GalVCaw==}
+
+  '@fontsource/caveat@5.3.0':
+    resolution: {integrity: sha512-eHTfzQxFSW9ABERRLNruHoNJmKed2J7pqTUc5lp4a4POMgXGKpxmWj3d9Hz10kmAg6iuTTLe6UagbA4bnsmfQw==}
+
+  '@fontsource/dm-sans@5.3.0':
+    resolution: {integrity: sha512-lYJtMXXO28q1z+yz+z8XKd0s4hXaa9QdkETzkyD760sidCv5heI86weYA0sx0Nc4pAMAQTUuyf4gO44cYKKS9g==}
+
+  '@fontsource/dm-serif-display@5.3.0':
+    resolution: {integrity: sha512-ecRclUcYeto9fB7ghkB36H4MtUoaUYFjjornWYYeLCMHzaWEDPk2kIWgZOq0mKBNRxclRSieKcFeLonlMYDTKg==}
+
+  '@fontsource/pinyon-script@5.3.0':
+    resolution: {integrity: sha512-ilhy4l5apzyDkfuKb7PZBUT5Sf6nfxucdXT5TQ0wQDyWtDPlouLy1lQq3lMEPk1lPsHHVrd11EkPnEG8FqDgUA==}
+
+  '@fontsource/special-elite@5.3.0':
+    resolution: {integrity: sha512-fOQ9XU8m4KnqzcLibAXCxTsKzbxePNDjPqVss5GSMcPVCY1TuCv+Wq8gm1ebqIR6XS1rhMbQ7ECP9ocKVEEpTA==}
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -1568,6 +1604,9 @@ packages:
   html-escaper@3.0.3:
     resolution: {integrity: sha512-RuMffC89BOWQoY0WKGpIhn5gX3iI54O6nRA0yC124NYVtzjmFWBIiFd8M0x+ZdX0P9R4lADg1mgP8C7PxGOWuQ==}
 
+  html-to-image@1.11.13:
+    resolution: {integrity: sha512-cuOPoI7WApyhBElTTb9oqsawRvZ0rHhaHwghRLlTuffoD1B2aDemlCruLeZrUIIdvG7gs9xeELEPm6PhuASqrg==}
+
   htmlparser2@10.1.0:
     resolution: {integrity: sha512-VTZkM9GWRAtEpveh7MSF6SjjrpNVNNVJfFup7xTY3UpFtm67foy9HDVXneLtFVt4pMz5kZtgNcvCniNFb1hlEQ==}
 
@@ -2667,6 +2706,16 @@ snapshots:
       '@fastify/forwarded': 3.1.2
       ipaddr.js: 2.5.0
 
+  '@fontsource/caveat@5.3.0': {}
+
+  '@fontsource/dm-sans@5.3.0': {}
+
+  '@fontsource/dm-serif-display@5.3.0': {}
+
+  '@fontsource/pinyon-script@5.3.0': {}
+
+  '@fontsource/special-elite@5.3.0': {}
+
   '@humanfs/core@0.19.2':
     dependencies:
       '@humanfs/types': 0.15.0
@@ -3678,6 +3727,8 @@ snapshots:
       - '@noble/hashes'
 
   html-escaper@3.0.3: {}
+
+  html-to-image@1.11.13: {}
 
   htmlparser2@10.1.0:
     dependencies:

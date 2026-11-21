@@ -8,9 +8,11 @@ import type {
   Moodboard,
   OutreachResult,
   RomanticResult,
+  Scrapbook,
   UserContext,
 } from '@profile-lens/contracts';
 import { startMusic } from '../services/music';
+import { Scrapbook as ScrapbookBoard } from './moodboard/Scrapbook';
 
 // Model labels sometimes arrive as identifiers ("coffee_chat_invitation"); show them as words.
 export const readable = (value: string) => {
@@ -360,6 +362,49 @@ export function OutreachView({
     </div>
   );
 }
+function ScrapbookSection({ board, evidence }: { board: Scrapbook | null; evidence: Evidence[] }) {
+  // Everything shown on the board, with the evidence it rests on.
+  const photos = new Set(evidence.map((e) => e.sourceImageId).filter(Boolean)).size;
+  const pieces = board
+    ? [
+        { title: 'Summary', ids: board.summary.evidenceIds },
+        ...board.portraits.map((p) => ({ title: p.caption ?? 'Portrait', ids: p.evidenceIds })),
+        ...board.hobbies.map((p) => ({ title: p.label, ids: p.evidenceIds })),
+        ...board.travel.map((p) => ({ title: p.place, ids: p.evidenceIds })),
+        ...(board.quote ? [{ title: 'Quote', ids: board.quote.evidenceIds }] : []),
+      ]
+    : [];
+  return (
+    <section className="board-section" aria-label="Scrapbook">
+      <div className="section-heading">
+        <span className="eyebrow">A little scrapbook</span>
+        <Sparkles size={18} />
+      </div>
+      {board ? (
+        <>
+          <ScrapbookBoard board={board} evidence={evidence} />
+          <details className="board-notes">
+            <summary>
+              Where this comes from <span>{pieces.length}</span>
+            </summary>
+            {pieces.map((piece, index) => (
+              <div key={index}>
+                <h3>{piece.title}</h3>
+                <Sources ids={piece.ids} evidence={evidence} />
+              </div>
+            ))}
+          </details>
+        </>
+      ) : (
+        <p className="notice">
+          {photos < 3
+            ? `No scrapbook yet: ${photos} of their photos ${photos === 1 ? 'has' : 'have'} been analysed and a board needs at least three. On an Instagram profile, use “Analyse profile images” above, wait for it to finish, then generate again.`
+            : `No scrapbook this time: ${photos} photos were analysed, but two portraits and a hobby photo could not be picked from them. Generate again, or analyse more photos.`}
+        </p>
+      )}
+    </section>
+  );
+}
 export function RomanticView({
   data,
   evidence,
@@ -375,7 +420,7 @@ export function RomanticView({
         <p>{data.summary.text}</p>
         <Sources ids={data.summary.evidenceIds} evidence={evidence} />
       </div>
-      <MoodboardView board={data.moodboard} evidence={evidence} />
+      <ScrapbookSection board={data.scrapbook} evidence={evidence} />
       {song && <Soundtrack tone={String(config?.tone ?? 'warm')} tags={[...song.tags]} />}
       <section>
         <h2>The things they enjoy</h2>
