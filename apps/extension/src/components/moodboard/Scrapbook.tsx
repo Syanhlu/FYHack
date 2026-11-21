@@ -58,7 +58,7 @@ export function Scrapbook({ board, evidence }: { board: Board; evidence: Evidenc
   const [status, setStatus] = useState('');
   const theme = boardThemes[board.boardTheme];
   const palette = scrapbookPalettes[board.paletteId].colours;
-  const used = [...board.portraits, ...board.hobbies, ...board.travel];
+  const used = [...board.portraits, ...board.hobbies, ...board.travel, ...board.moments];
   // Photo pixels live only in this panel's memory. A board that outlives them is stale.
   if (used.some((photo) => !photoPreview(photo.imageId)))
     return (
@@ -74,7 +74,7 @@ export function Scrapbook({ board, evidence }: { board: Board; evidence: Evidenc
   const slots = layout(board);
   // The model's picks first, then a few of the theme's own, never repeating one.
   const stickerIds = [...new Set<StickerId>([...board.stickerIds, ...theme.stickers])].slice(0, 13);
-  const spots = stickerSpots(stickerIds.length, used.map((p) => p.imageId).join());
+  const spots = stickerSpots(stickerIds.length, used.map((p) => p.imageId).join(), slots.height);
   const nameSize = board.name.length <= 7 ? 'xl' : board.name.length <= 13 ? 'lg' : 'md';
   const download = async () => {
     if (!node.current) return;
@@ -102,6 +102,7 @@ export function Scrapbook({ board, evidence }: { board: Board; evidence: Evidenc
             '--sb-accent': palette[1],
             '--sb-second': palette[2],
             '--sb-ink': palette[3],
+            aspectRatio: `100 / ${slots.height}`,
           } as CSSProperties
         }
       >
@@ -152,12 +153,23 @@ export function Scrapbook({ board, evidence }: { board: Board; evidence: Evidenc
             <figcaption className="sb-label">📍 {photo.place}</figcaption>
           </Photo>
         ))}
+        {board.moments.map((photo, index) => (
+          <Photo
+            key={photo.imageId}
+            src={src(photo.imageId)}
+            alt={alt(photo, 'A photo from their profile')}
+            frame={(['polaroid', 'rounded', 'torn'] as const)[index % 3]!}
+            slot={slots.moments[index]!}
+            tape={index % 2 === 0}
+            small
+          />
+        ))}
         <div className="sb-swatches" aria-hidden="true">
           {palette.map((colour) => (
             <span key={colour} style={{ backgroundColor: colour }} />
           ))}
         </div>
-        {stickerIds.map((id, index) => (
+        {stickerIds.slice(0, spots.length).map((id, index) => (
           <span
             key={id}
             className="sb-sticker"

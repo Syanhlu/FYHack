@@ -73,7 +73,7 @@ describe('scrapbook validation', () => {
       // The pottery photo is the only one labelled as an activity.
       const hobbies = board((b) => (b.hobbies[0]!.imageId = imageId))!.hobbies;
       expect(hobbies).toEqual([
-        { imageId: photoIds[2], label: 'out doing things', evidenceIds: ['v3'] },
+        { imageId: photoIds[2], label: 'in their element ✨', evidenceIds: ['v3'] },
       ]);
     }
     const portraits = board((b) => (b.portraits[1]!.imageId = photoIds[0]!))!.portraits;
@@ -135,10 +135,28 @@ describe('scrapbook validation', () => {
       expect(result.scrapbook?.quote?.quoteText).toBeNull();
     }
   });
-  it('replaces a name the profile does not contain', () => {
-    const result = check((b) => (b.name = 'Jessica'))().result as RomanticResult;
-    expect(result.scrapbook?.name).toBe('Alex');
+  it('takes the name from the page, never from the bio', () => {
+    // "pottery" is in their bio text, and "Jessica" is nowhere: neither is their name.
+    for (const wrong of ['pottery', 'Jessica'])
+      expect(board((b) => (b.name = wrong))?.name).toBe('Alex');
+    const named = (ownerName: string | null, displayName: string, given: string) => {
+      const { input, raw, board: b } = scrapbookCase();
+      Object.assign(input.profile, { ownerName, displayName });
+      b.name = given;
+      return (validateOutcome(mode, raw, input).result as RomanticResult).scrapbook!.name;
+    };
+    expect(named('Alexandra Morgan', '@alex.m', "King's College")).toBe('Alexandra Morgan');
+    expect(named('Alexandra Morgan', '@alex.m', 'Alexandra')).toBe('Alexandra');
+    expect(named('Alexandra Catherine Morgan-Whitfield', '@alex.m', 'x')).toBe('Alexandra');
+    expect(named(null, '@alex.m', "King's College")).toBe('@alex.m');
+    const { input } = scrapbookCase();
+    Object.assign(input.profile, { ownerName: 'Alexandra Morgan', displayName: '@alex.m' });
+    expect(JSON.parse(promptFor(mode, input)[1]!.content).profileOwner).toEqual({
+      name: 'Alexandra Morgan',
+      handle: '@alex.m',
+    });
   });
+
   it('returns no board, not a broken one, when there is not enough photo material', () => {
     const { input, raw } = scrapbookCase();
     input.profile.evidence = input.profile.evidence.filter(
@@ -160,29 +178,92 @@ describe('scrapbook rendering', () => {
     const { board } = scrapbookCase();
     expect(layout(board)).toEqual(layout(board));
     expect(stickerSpots(8, 'seed')).toEqual(stickerSpots(8, 'seed'));
-    for (const hobbies of [1, 2])
-      for (const travel of [0, 1, 2]) {
-        const extra = (n: number) => `00000000-0000-4000-8000-0000000000${10 + n}`;
-        const slots = layout({
-          ...board,
-          hobbies: Array.from({ length: hobbies }, (_, i) => ({
-            imageId: extra(i),
-            label: 'x',
-            evidenceIds: ['v3'],
-          })),
-          travel: Array.from({ length: travel }, (_, i) => ({
-            imageId: extra(i + 5),
-            place: 'Lisbon, Portugal',
-            evidenceIds: ['v5'],
-          })),
-        });
-        expect(slots.small).toHaveLength(hobbies + travel);
-        for (const slot of [...slots.portraits, slots.summary, slots.quote, ...slots.small]) {
-          expect(slot.left).toBeGreaterThanOrEqual(0);
-          expect(slot.left + slot.width).toBeLessThanOrEqual(100);
-          expect(Math.abs(slot.rotate)).toBeLessThanOrEqual(6);
+    const extra = (n: number) => `00000000-0000-4000-8000-0000000000${10 + n}`;
+    const heights = new Set<number>();
+    for (const hobbies of [1, 2, 3])
+      for (const travel of [0, 1, 2])
+        for (const moments of [0, 1, 4, 6]) {
+          const slots = layout({
+            ...board,
+            hobbies: Array.from({ length: hobbies }, (_, i) => ({
+              imageId: extra(i),
+              label: 'x',
+              evidenceIds: ['v3'],
+            })),
+            travel: Array.from({ length: travel }, (_, i) => ({
+              imageId: extra(i + 5),
+              place: 'Lisbon, Portugal',
+              evidenceIds: ['v5'],
+            })),
+            moments: Array.from({ length: moments }, (_, i) => ({
+              imageId: extra(i + 10),
+              evidenceIds: ['v3'],
+            })),
+          });
+          heights.add(slots.height);
+          expect(slots.small).toHaveLength(hobbies + travel);
+          expect(slots.moments).toHaveLength(moments);
+          const pieces = [
+            ...slots.portraits,
+            slots.summary,
+            slots.quote,
+            ...slots.small,
+            ...slots.moments,
+          ];
+          for (const slot of pieces) {
+            expect(slot.left).toBeGreaterThanOrEqual(0);
+            expect(slot.left + slot.width).toBeLessThanOrEqual(100);
+            expect(slot.top + slot.width).toBeLessThan(slots.height + 2);
+            expect(Math.abs(slot.rotate)).toBeLessThanOrEqual(6);
+          }
+          // Every sticker spot stays on the board, however tall it gets.
+          for (const spot of stickerSpots(13, 'seed', slots.height))
+            expect(spot.top).toBeLessThanOrEqual(slots.height - 9);
         }
-      }
+    // About 4:5 with one row of small photos, growing with every extra row.
+    expect(Math.min(...heights)).toBeGreaterThanOrEqual(120);
+    expect(Math.min(...heights)).toBeLessThanOrEqual(135);
+    expect(Math.max(...heights)).toBeGreaterThan(220);
+  });
+  it('fills the board with their other photos, leaving out screenshots', () => {
+    const { input, raw } = scrapbookCase();
+    const kinds = [
+      'food',
+      'text',
+      'animal',
+      'person',
+      'place',
+      'activity',
+      'object',
+      'group',
+    ] as const;
+    kinds.forEach((photoKind, i) =>
+      input.profile.evidence.push({
+        id: `x${i}`,
+        text: `Extra photo ${i}.`,
+        sourceKind: 'visual',
+        attribution: 'visual_observation',
+        sectionLabel: `Photo ${i + 5}`,
+        sourceImageId: `00000000-0000-4000-8000-0000000001${10 + i}`,
+        observationKind: 'scene',
+        photoKind,
+      }),
+    );
+    const made = (validateOutcome(mode, raw, input).result as RomanticResult).scrapbook!;
+    const kind = (id: string) =>
+      input.profile.evidence.find((e) => e.sourceImageId === id)!.photoKind;
+    expect(made.moments).toHaveLength(6);
+    expect(made.moments.map((m) => kind(m.imageId))).toEqual([
+      'food',
+      'animal',
+      'place',
+      'activity',
+      'person',
+      'object',
+    ]);
+    const all = [...made.portraits, ...made.hobbies, ...made.travel, ...made.moments];
+    expect(new Set(all.map((p) => p.imageId)).size).toBe(all.length);
+    expect(made.moments.every((m) => m.evidenceIds.length > 0)).toBe(true);
   });
   it('renders every theme with every palette from local photo data only', () => {
     const { board, input } = scrapbookCase();

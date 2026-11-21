@@ -43,6 +43,45 @@ function instagramOwner(root: HTMLElement, href: string): string {
     ? `@${handle}`
     : '';
 }
+/** The display name Instagram puts beside the handle. The page title states it as
+ * "Name (@handle)"; that alone is not trusted, so the same text must also be visible in the
+ * profile header. Bio lines such as a school never appear in the title, so cannot match. */
+function instagramName(doc: Document, root: HTMLElement, href: string): string | null {
+  const handle = instagramHandle(href)?.toLowerCase();
+  const titles = [
+    doc.title,
+    doc.querySelector('meta[property="og:title"]')?.getAttribute('content') ?? '',
+  ];
+  for (const title of titles) {
+    const match = title.match(/^(?:\(\d+\)\s*)?(.+?)\s*\(@([a-z0-9._]+)\)/i);
+    const name = cleanText(match?.[1] ?? '');
+    if (
+      name &&
+      match![2]!.toLowerCase() === handle &&
+      [...root.querySelectorAll('[dir="auto"],span,h1')].some(
+        (node) => isVisible(node) && visibleText(node) === name,
+      )
+    )
+      return name.slice(0, 120);
+  }
+  // Signed-in pages often have a bare title, and after in-app navigation the metadata can
+  // describe the previous profile. Then use the page structure: Instagram renders the name
+  // as the first plain text element of the header, before the counts and the bio (which
+  // sits inside its own expander control). Anything long or link-like is not a name.
+  const first = [...root.querySelectorAll('[dir="auto"]')].find(
+    (node) =>
+      isVisible(node) &&
+      !node.querySelector('[dir="auto"]') &&
+      !node.closest('a,button,[role="button"],h2,ul,ol,[role="dialog"],[role="menu"]') &&
+      visibleText(node),
+  );
+  const text = first ? visibleText(first) : '';
+  return text.length <= 40 &&
+    text.split(/\s+/).length <= 5 &&
+    !/[@/\d]|\.[a-z]{2,}\b|\b(?:posts?|followers?|following)$/i.test(text)
+    ? text || null
+    : null;
+}
 function instagramBioNodes(root: HTMLElement): Element[] {
   const selector = 'p,[dir="auto"]';
   const nodes = [...root.querySelectorAll(selector)].filter((node) => {
@@ -156,6 +195,7 @@ export async function extractProfile(
   if (!name)
     throw new Error('This page does not identify one profile owner. Use Paste profile text.');
   const displayName = name.slice(0, 120);
+  const givenName = isInstagram(url) ? instagramName(doc, root, href) : displayName;
   const linkedin = isLinkedInProfile(href);
   const instagram = isInstagram(url);
   const selector = 'p,li';
@@ -204,7 +244,13 @@ export async function extractProfile(
     // Short bios can still contain an age or contact boundary, even when they
     // are too short to retain as useful conversation evidence.
     if (instagram && raw) safetyParts.push(raw);
-    if (!raw || raw === displayName || raw.length < (block.minLength ?? 12) || seen.has(raw))
+    if (
+      !raw ||
+      raw === displayName ||
+      raw === givenName ||
+      raw.length < (block.minLength ?? 12) ||
+      seen.has(raw)
+    )
       continue;
     seen.add(raw);
     if (!instagram) safetyParts.push(raw);
@@ -248,6 +294,7 @@ export async function extractProfile(
     profile: {
       snapshotId: crypto.randomUUID(),
       displayName,
+      ownerName: givenName,
       evidence,
       truncated,
       eligibilitySignals: detectEligibility(safetyParts.join('\n')),

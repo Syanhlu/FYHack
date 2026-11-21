@@ -16,7 +16,9 @@ export function visibleText(element: Element): string {
   const parts: string[] = [];
   let count = 0;
   while (walker.nextNode() && count++ < 3000) {
-    if (walker.currentNode.parentElement && isVisible(walker.currentNode.parentElement))
+    const parent = walker.currentNode.parentElement;
+    // Icons carry their own labels (a "Verified" badge, "Link icon"): not something they wrote.
+    if (parent && !parent.closest('svg') && isVisible(parent))
       parts.push(walker.currentNode.textContent ?? '');
   }
   return cleanText(parts.join(' '));

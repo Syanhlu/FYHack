@@ -158,6 +158,53 @@ describe('Instagram profile extraction', () => {
       ['Instagram link', 'shop.example and 2 more'],
     ]);
   });
+  it('reads the name from the name element, never from a bio line such as a school', async () => {
+    const page = (title: string) => {
+      document.title = title;
+      document.body.innerHTML = `<main><header><section><h2 dir="auto">alex.morgan</h2>
+        <span dir="auto">Alex Morgan</span>
+        <span dir="auto"><div role="button"><span dir="auto">King's College London 🎓 Economics</span></div></span>
+        </section></header></main>`;
+    };
+    page('(3) Alex Morgan (@alex.morgan) • Instagram photos and videos');
+    const result = await extractProfile(document, href);
+    expect(result.profile.displayName).toBe('@alex.morgan');
+    expect(result.profile.ownerName).toBe('Alex Morgan');
+    // The name is not repeated as a bio detail; the school stays a detail.
+    expect(result.profile.evidence.map((e) => e.text)).toEqual([
+      "King's College London 🎓 Economics",
+    ]);
+    // A title for another account, or a name that is not on the page, is not trusted.
+    page('Jamie Lee (@jamie.lee) • Instagram photos and videos');
+    expect((await extractProfile(document, href)).profile.ownerName).toBe('Alex Morgan');
+    // A title naming something that is not shown as the name falls back to the page structure.
+    page("King's College London (@alex.morgan) • Instagram");
+    expect((await extractProfile(document, href)).profile.ownerName).toBe('Alex Morgan');
+    // With a bare title, the first plain text element of the header is the name.
+    page('(2) Instagram');
+    expect((await extractProfile(document, href)).profile.ownerName).toBe('Alex Morgan');
+    // No name element: the first plain text is the counts or a bio line, never used as a name.
+    document.querySelector('span[dir]')!.textContent = '5,018 posts';
+    expect((await extractProfile(document, href)).profile.ownerName).toBeNull();
+    document.querySelector('span[dir]')!.textContent =
+      'Economics student at a university in London who loves long walks';
+    expect((await extractProfile(document, href)).profile.ownerName).toBeNull();
+    document.title = '';
+  });
+  it('ignores icon labels such as the Verified badge', async () => {
+    document.title = 'Alex Morgan (@alex.morgan) • Instagram photos and videos';
+    document.body.innerHTML = `<main><header><section>
+      <h2 dir="auto">alex.morgan<svg aria-label="Verified"><title>Verified</title></svg></h2>
+      <span dir="auto">Alex Morgan<svg aria-label="Verified"><title>Verified</title></svg></span>
+      <span dir="auto"><div role="button"><span dir="auto">Potter and weekend hiker<svg><title>Verified</title></svg></span></div></span>
+      </section></header></main>`;
+    const result = await extractProfile(document, href);
+    expect(result.profile.displayName).toBe('@alex.morgan');
+    expect(result.profile.ownerName).toBe('Alex Morgan');
+    expect(result.profile.evidence.map((e) => e.text)).toEqual(['Potter and weekend hiker']);
+    expect(JSON.stringify(result.profile)).not.toContain('Verified');
+    document.title = '';
+  });
   it('does not read images or grid text when the bio is empty', async () => {
     profile('');
     const result = await extractProfile(document, href);

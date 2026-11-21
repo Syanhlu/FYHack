@@ -51,6 +51,9 @@ export const profileSchema = z
   .object({
     snapshotId: z.string().uuid(),
     displayName: text(120).nullable(),
+    // The person's name as read from the page's own name element (or typed by the user).
+    // displayName identifies the profile and may be a handle; this is what to call them.
+    ownerName: text(120).nullable().optional(),
     evidence: z.array(evidenceSchema).max(120 + IMAGE_LIMIT * 3),
     truncated: z.boolean(),
     eligibilitySignals: eligibilitySignalsSchema,
@@ -127,7 +130,9 @@ export const scrapbookSchema = z
     hobbies: z
       .array(z.object({ ...photoRef, label: text(40) }).strict())
       .min(1)
-      .max(2),
+      .max(3),
+    // More of their photos, added by the backend from whatever is left.
+    moments: z.array(z.object(photoRef).strict()).max(6),
     quote: z
       .object({ quoteText: text(160).nullable(), caption: text(120), evidenceIds: refs })
       .strict()
@@ -287,6 +292,12 @@ export type LocalSnapshot = {
   captureWarnings?: string[];
 };
 
+/** Who the profile belongs to: the name read from the page's name element, and any handle.
+ * Never derived from bio text, so a school or employer cannot be mistaken for a name. */
+export function profileOwner(profile: Pick<Profile, 'displayName' | 'ownerName'>) {
+  const handle = profile.displayName?.startsWith('@') ? profile.displayName : null;
+  return { name: profile.ownerName ?? (handle ? null : profile.displayName), handle };
+}
 export function cleanText(value: string): string {
   return value
     .replace(/\p{Cc}/gu, (character) => (/\s/u.test(character) ? character : ''))
@@ -341,6 +352,7 @@ export function manualProfile(raw: string, name: string | null = null): Profile 
   return {
     snapshotId: crypto.randomUUID(),
     displayName: name ? cleanText(name).slice(0, 120) : null,
+    ownerName: name ? cleanText(name).slice(0, 120) : null,
     evidence,
     truncated,
     eligibilitySignals: detectEligibility(raw),

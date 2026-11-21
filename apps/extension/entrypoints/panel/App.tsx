@@ -181,6 +181,16 @@ export default function App() {
     setStage('reviewing');
     setPasteOpen(false);
   };
+  // The name the results will use. Read from the page's name element; the user can correct it.
+  const editName = (value: string) => {
+    if (!snapshot) return;
+    invalidate();
+    setSnapshot({
+      ...snapshot,
+      inputRevision: snapshot.inputRevision + 1,
+      profile: { ...snapshot.profile, ownerName: value.trim() ? value.slice(0, 120) : null },
+    });
+  };
   const editEvidence = (id: string, value: string | null) => {
     if (!snapshot) return;
     invalidate();
@@ -617,7 +627,9 @@ export default function App() {
       {snapshot && (
         <>
           <div className="profile-strip">
-            <div className="avatar">{(snapshot.profile.displayName ?? 'P').slice(0, 1)}</div>
+            <div className="avatar">
+              {(snapshot.profile.ownerName ?? snapshot.profile.displayName ?? 'P').slice(0, 1)}
+            </div>
             <div>
               <strong>{snapshot.profile.displayName ?? 'This profile'}</strong>
               <span>
@@ -654,12 +666,29 @@ export default function App() {
               <div className="section-heading">
                 <div>
                   <span className="eyebrow">
-                    About {snapshot.profile.displayName ?? 'the person you’re viewing'}
+                    About{' '}
+                    {snapshot.profile.ownerName ??
+                      snapshot.profile.displayName ??
+                      'the person you’re viewing'}
                   </span>
                   <h1>Review the details.</h1>
                 </div>
                 <Eye size={20} />
               </div>
+              <label>
+                Their name
+                <input
+                  value={snapshot.profile.ownerName ?? ''}
+                  maxLength={120}
+                  disabled={busy}
+                  onChange={(e) => editName(e.target.value)}
+                  placeholder={
+                    snapshot.profile.displayName?.startsWith('@')
+                      ? `Not shown on the page · ${snapshot.profile.displayName} will be used`
+                      : 'What should we call them?'
+                  }
+                />
+              </label>
               <p className="hint">
                 {snapshot.profile.evidence.length} details about the profile owner.{' '}
                 {snapshot.adapterId === 'instagram-best-effort' &&

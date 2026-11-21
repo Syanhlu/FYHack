@@ -180,6 +180,7 @@ export function scrapbookCase() {
     ],
     travel: [{ imageId: photoIds[3]!, place: 'Lisbon, Portugal', evidenceIds: ['v4', 'v5'] }],
     hobbies: [{ imageId: photoIds[2]!, label: 'pottery days', evidenceIds: ['v3'] }],
+    moments: [],
     quote: { quoteText: 'I enjoy pottery', caption: 'In their words', evidenceIds: ['e2'] },
     stickerIds: ['coffee', 'book', 'bike', 'palette', 'heart', 'sparkle'],
   };

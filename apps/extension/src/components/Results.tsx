@@ -371,6 +371,7 @@ function ScrapbookSection({ board, evidence }: { board: Scrapbook | null; eviden
         ...board.portraits.map((p) => ({ title: p.caption ?? 'Portrait', ids: p.evidenceIds })),
         ...board.hobbies.map((p) => ({ title: p.label, ids: p.evidenceIds })),
         ...board.travel.map((p) => ({ title: p.place, ids: p.evidenceIds })),
+        ...board.moments.map((p, i) => ({ title: `Photo ${i + 1}`, ids: p.evidenceIds })),
         ...(board.quote ? [{ title: 'Quote', ids: board.quote.evidenceIds }] : []),
       ]
     : [];
