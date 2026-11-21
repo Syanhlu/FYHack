@@ -3,20 +3,27 @@ import { profileSchema, type LocalSnapshot } from '@profile-lens/contracts';
 export async function capture(): Promise<LocalSnapshot> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id) throw new Error('Open a profile page and click the extension toolbar icon.');
+  let results;
   try {
-    const results = await chrome.scripting.executeScript({
+    results = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       files: ['extract.js'],
     });
-    const snapshot = results[0]?.result as LocalSnapshot | undefined;
-    if (!snapshot?.profile) throw new Error('No individual profile was found.');
-    profileSchema.parse(snapshot.profile);
-    return { ...snapshot, tabId: tab.id };
   } catch {
     throw new Error(
       'Could not read this page. Click the toolbar icon on the profile to grant access, or use Paste profile text.',
     );
   }
+  const result = results[0]?.result as LocalSnapshot | { extractionError: string } | undefined;
+  if (result && 'extractionError' in result) throw new Error(result.extractionError);
+  if (!result?.profile)
+    throw new Error(
+      'The page reader returned no profile. Reload the extension and refresh this page, then try again.',
+    );
+  const parsed = profileSchema.safeParse(result.profile);
+  if (!parsed.success)
+    throw new Error('The page reader returned invalid profile details. Use Paste profile text.');
+  return { ...result, profile: parsed.data, tabId: tab.id };
 }
 export async function isCurrent(snapshot: LocalSnapshot): Promise<boolean> {
   if (snapshot.tabId === null) return true;

@@ -1,10 +1,23 @@
 import { defineUnlistedScript } from 'wxt/utils/define-unlisted-script';
+import { captureLinkedIn } from '../src/extraction/capture-linkedin';
 import { extractProfile, identityText, profileRoot } from '../src/extraction';
 
 export default defineUnlistedScript({
   globalName: true,
   async main() {
-    const snapshot = await extractProfile(document, location.href);
+    let snapshot;
+    try {
+      const href = location.href;
+      const captured = await captureLinkedIn(document, href);
+      snapshot = await extractProfile(document, href, captured);
+    } catch (error) {
+      return {
+        extractionError:
+          error instanceof Error
+            ? error.message
+            : 'Could not parse this profile. Use Paste profile text.',
+      };
+    }
     const originalRoot = profileRoot(document);
     const originalIdentity = identityText(document, location.href);
     const host = globalThis as typeof globalThis & { __profileLensDispose?: () => void };

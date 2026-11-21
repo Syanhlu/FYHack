@@ -31,7 +31,7 @@ The OpenAI key stays in the server environment. Do not paste it into the extensi
 ## What is implemented
 
 - WXT / React / TypeScript Manifest V3 extension with a side panel and temporary `activeTab` extraction.
-- Generic individual-profile extraction, a best-effort LinkedIn adapter, and manual paste fallback.
+- Generic individual-profile extraction, a best-effort LinkedIn adapter, and manual paste fallback. LinkedIn capture scrolls, expands section text and dialogs, and attempts same-profile Show all detail views.
 - Editable/removable evidence, optional user context, mode-specific preferences, and source drawers.
 - Separate shared/server/client mode registries; adding a mode does not require changing the extractor or endpoint orchestration.
 - OpenAI Responses API adapter, strict mode schemas, citation/quote/catalogue validation, deadlines, cancellation, rate limits, and typed failure states.
@@ -74,7 +74,7 @@ Extraction is intentionally conservative and excludes hidden content, forms, sid
 
 - Live smoke checks passed for both modes using `gpt-5.4-mini`. The installed Chrome extension also completed a live Outreach analysis from the fictional sample page. This verifies that the integration works; broader factual and suggestion-quality evaluation remains in [the demo runbook](docs/DEMO_SCRIPT.md).
 - Native Chrome installation, toolbar access, side-panel extraction, local authentication, and Outreach generation have been verified. Continue the remaining tab/domain, restricted-page, and accessibility checks before presenting.
-- LinkedIn extraction is best-effort and has not been verified against a real logged-in account. Use a personal page or paste text when parsing fails. Other social platforms have no dedicated adapter.
+- LinkedIn extraction is best-effort and has not been verified against a real logged-in account. Capture takes up to roughly a minute, restores the original scroll position, and reports blocked or unfinished sections. Detail pages are rendered in temporary same-origin frames; LinkedIn may block these. LinkedIn evidence is capped at 120 snippets / 60,000 characters with a visible truncation notice. Generic extraction and manual paste retain their 30-snippet / 12,000-character capture limits. Use a personal page or paste text when parsing fails. Other social platforms have no dedicated adapter.
 - Boards use original editorial illustrations, not generated photos or scraped profile photos. The music catalogue is deliberately small (two artists) and can be extended in `packages/catalogues`.
 - Panel state is memory-only; closing and reopening the panel may require another capture. No result history or remote persistence.
 - Provider retries are manual in this slice; requests have one deadline and no automatic duplicate spend.

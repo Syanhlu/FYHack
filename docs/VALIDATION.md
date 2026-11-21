@@ -40,3 +40,9 @@ An initial live Outreach evaluation failed the invitation's minimum word count. 
 The dedicated Chrome window is named **Profile Lens · Hackathon**. The local API runs at `http://127.0.0.1:8787` and the fictional profiles at `http://localhost:4173`. Restart both with `pnpm demo` (or `npx --yes pnpm@10.28.0 demo`) after stopping existing servers. Chrome reloads/restarts clear the connection token from extension session storage; reconnect using `BACKEND_ACCESS_TOKEN` from `.env` when needed.
 
 Follow [DEMO_SCRIPT.md](DEMO_SCRIPT.md) for the remaining native Chrome, real-site and quality checks before presenting.
+
+## LinkedIn expansion update
+
+Synthetic coverage verifies nested headings, stable section anchors with translated headings, headline/location fields, delayed loading, inline expansion, Show all dialogs, same-profile detail views, failed detail loads, route/identity changes, and bounded evidence. A Chromium fixture runs the bundled reader against intercepted LinkedIn-shaped pages and verifies scrolling, expansion, detail-frame capture, exclusion of activity, frame cleanup, and restoration of scroll position. No real LinkedIn account is contacted.
+
+The full browser suite was attempted during this update: the new LinkedIn test passed; the three existing API-backed flows could not start because port 8787 was already occupied. The running server was left untouched.

@@ -488,6 +488,12 @@ export default function App() {
           </button>
         </section>
       )}
+      {stage === 'extracting' && (
+        <p className="notice" role="status">
+          Reading profile sections. LinkedIn capture scrolls and expands details and may take up to
+          a minute. Keep this profile open.
+        </p>
+      )}
       {snapshot && (
         <>
           <div className="profile-strip">
@@ -504,6 +510,13 @@ export default function App() {
               <X size={17} />
             </button>
           </div>
+          <button
+            className="button secondary full"
+            disabled={busy}
+            onClick={() => void readProfile()}
+          >
+            <ScanText size={17} /> Read this profile again
+          </button>
           {stage !== 'ready' && (
             <section className="review">
               <div className="section-heading">
@@ -517,6 +530,11 @@ export default function App() {
                 {snapshot.profile.evidence.length} snippets · Only retained text below is sent. Edit
                 or remove anything you don’t want to use.
               </p>
+              {snapshot.captureWarnings?.map((warning) => (
+                <p className="notice" key={warning}>
+                  {warning}
+                </p>
+              ))}
               {snapshot.profile.truncated && (
                 <p className="notice">
                   Some content was shortened to fit. Review the retained snippets.

@@ -22,14 +22,14 @@ export const profileSchema = z
   .object({
     snapshotId: z.string().uuid(),
     displayName: text(120).nullable(),
-    evidence: z.array(evidenceSchema).max(30),
+    evidence: z.array(evidenceSchema).max(120),
     truncated: z.boolean(),
     eligibilitySignals: eligibilitySignalsSchema,
   })
   .strict()
   .superRefine((p, ctx) => {
-    if (p.evidence.reduce((n, e) => n + e.text.length, 0) > 12000)
-      ctx.addIssue({ code: 'custom', message: 'Profile exceeds 12,000 characters.' });
+    if (p.evidence.reduce((n, e) => n + e.text.length, 0) > 60000)
+      ctx.addIssue({ code: 'custom', message: 'Profile exceeds 60,000 characters.' });
     if (new Set(p.evidence.map((e) => e.id)).size !== p.evidence.length)
       ctx.addIssue({ code: 'custom', message: 'Duplicate evidence IDs.' });
   });
@@ -224,6 +224,7 @@ export type LocalSnapshot = {
   adapterId: string;
   capturedAt: string;
   inputRevision: number;
+  captureWarnings?: string[];
 };
 
 export function cleanText(value: string): string {

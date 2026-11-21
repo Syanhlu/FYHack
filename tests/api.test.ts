@@ -140,9 +140,28 @@ describe('local API', () => {
           method: 'POST',
           url: '/v1/analyse',
           headers: { ...headers, 'content-type': 'application/json' },
-          payload: JSON.stringify({ huge: 'x'.repeat(70000) }),
+          payload: JSON.stringify({ huge: 'x'.repeat(600000) }),
         })
       ).statusCode,
     ).toBe(413);
+  });
+  it('accepts expanded LinkedIn evidence including multibyte text', async () => {
+    const { app, generate } = make();
+    const input = request();
+    for (let index = 0; index < 99; index++) {
+      input.profile.evidence.push({
+        ...input.profile.evidence[0],
+        id: `extra${index}`,
+        text: '研究'.repeat(250),
+      });
+    }
+    const result = await app.inject({
+      method: 'POST',
+      url: '/v1/analyse',
+      headers,
+      payload: input,
+    });
+    expect(result.statusCode).toBe(200);
+    expect(generate).toHaveBeenCalledOnce();
   });
 });

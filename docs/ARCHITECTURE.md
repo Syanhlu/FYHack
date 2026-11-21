@@ -44,3 +44,7 @@ The request is validated, minimised, and checked before generating. The model se
 - Memory-only profile/results; session storage is reserved for the backend token.
 - Explicit manual retry instead of automatic retries.
 - No backend result persistence, streaming, background analysis, or hardcoded presentation provider.
+
+## LinkedIn capture
+
+The injected reader prepares LinkedIn pages before extracting evidence: bounded incremental scrolling, scoped See more/Show all buttons, scrolling and dismissal of newly opened section dialogs, and same-profile detail links rendered in temporary same-origin frames. It restores the main scroll position and rejects identity or route changes during capture. It does not follow unrelated profiles, activity, or recommendations. Section IDs and normalised headings identify content boundaries independently of nested job/education headings. Frame failures, loading limits, and evidence truncation are visible in review. Capture is bounded to 60 seconds plus an in-flight frame load, 35 scroll steps per view, 12 expansion passes and 15 detail views. The LinkedIn evidence budget is 120 snippets / 60,000 characters; the API accepts up to 512 KiB to accommodate UTF-8 and JSON overhead. Generic and manual capture retain their smaller budgets.
