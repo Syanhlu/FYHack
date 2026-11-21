@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { randomBytes } from 'node:crypto';
 import { buildApp } from './app';
 import { liveProvider } from './providers/live';
+import { imageProvider } from './providers/images';
 
 const { OPENAI_API_KEY, OPENAI_MODEL, ALLOWED_EXTENSION_ORIGIN, BACKEND_ACCESS_TOKEN } =
   process.env;
@@ -34,6 +35,18 @@ const token = BACKEND_ACCESS_TOKEN || randomBytes(32).toString('base64url');
 if (token.length < 24) throw new Error('BACKEND_ACCESS_TOKEN must contain at least 24 characters.');
 const app = buildApp({
   token,
+  images:
+    process.env.IMAGE_ANALYSIS_ENABLED === 'true'
+      ? {
+          provider: imageProvider({
+            apiKey: OPENAI_API_KEY,
+            model: process.env.OPENAI_IMAGE_MODEL || OPENAI_MODEL,
+            timeoutMs,
+          }),
+          batchBudgetUsd: Number(process.env.IMAGE_BATCH_BUDGET_USD ?? 0.05),
+          runBudgetUsd: Number(process.env.IMAGE_RUN_BUDGET_USD ?? 1),
+        }
+      : undefined,
   allowedOrigin: ALLOWED_EXTENSION_ORIGIN!,
   timeoutMs,
   provider: liveProvider({
@@ -45,6 +58,9 @@ const app = buildApp({
 });
 await app.listen({ host: '127.0.0.1', port: Number(process.env.API_PORT ?? 8787) });
 console.log('Profile Lens live API ready at http://127.0.0.1:8787');
+console.log(
+  `Photo analysis: ${process.env.IMAGE_ANALYSIS_ENABLED === 'true' ? 'enabled' : 'disabled (set IMAGE_ANALYSIS_ENABLED=true and restart the API)'}`,
+);
 if (!BACKEND_ACCESS_TOKEN)
   console.log(`Local connection token (paste in extension Settings): ${token}`);
 else console.log('Use the BACKEND_ACCESS_TOKEN from your local .env in extension Settings.');

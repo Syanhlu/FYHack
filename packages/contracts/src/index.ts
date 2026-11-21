@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const SCHEMA_VERSION = '1';
+export const SCHEMA_VERSION = '2';
 export const CATALOGUE_VERSION = '1';
 export const SESSION_TTL = 30 * 60 * 1000;
 const text = (max = 600) => z.string().trim().min(1).max(max);
@@ -10,11 +10,22 @@ export const evidenceSchema = z
   .object({
     id: text(40),
     text: text(),
-    sourceKind: z.enum(['headline', 'bio', 'experience', 'project', 'post', 'manual']),
-    attribution: z.enum(['profile_owner', 'user_supplied']),
+    sourceKind: z.enum(['headline', 'bio', 'experience', 'project', 'post', 'manual', 'visual']),
+    attribution: z.enum(['profile_owner', 'user_supplied', 'visual_observation']),
     sectionLabel: text(80),
+    sourceImageId: z.string().uuid().optional(),
+    observationKind: z.enum(['scene', 'ocr']).optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((e, ctx) => {
+    const visual = e.sourceKind === 'visual';
+    if (
+      visual !== (e.attribution === 'visual_observation') ||
+      visual !== !!e.sourceImageId ||
+      visual !== !!e.observationKind
+    )
+      ctx.addIssue({ code: 'custom', message: 'Visual evidence requires image provenance.' });
+  });
 export const eligibilitySignalsSchema = z
   .object({ minorMentioned: z.boolean(), noRomanticContact: z.boolean() })
   .strict();
@@ -286,3 +297,54 @@ export function manualProfile(raw: string, name: string | null = null): Profile 
     eligibilitySignals: detectEligibility(raw),
   };
 }
+
+export const IMAGE_LIMIT = 50;
+export const IMAGE_BATCH_SIZE = 3;
+export const IMAGE_BATCH_INTERVAL_MS = 7000;
+export const imageInputSchema = z
+  .object({
+    id: z.string().uuid(),
+    dataUrl: z
+      .string()
+      .max(1400000)
+      .regex(/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/),
+  })
+  .strict();
+export const imageRequestSchema = z
+  .object({
+    schemaVersion: z.literal(SCHEMA_VERSION),
+    runId: z.string().uuid(),
+    batchId: z.string().uuid(),
+    snapshotId: z.string().uuid(),
+    images: z.array(imageInputSchema).min(1).max(IMAGE_BATCH_SIZE),
+  })
+  .strict()
+  .superRefine((r, ctx) => {
+    if (new Set(r.images.map((i) => i.id)).size !== r.images.length)
+      ctx.addIssue({ code: 'custom', message: 'Duplicate image IDs.' });
+  });
+export const imageObservationSchema = z
+  .object({
+    imageId: z.string().uuid(),
+    kind: z.enum(['scene', 'ocr']),
+    text: text(450),
+    uncertainty: z.string().max(150),
+  })
+  .strict();
+export const imageOutcomeSchema = z
+  .object({
+    status: z.enum(['ready', 'insufficient', 'blocked']),
+    reason: z.string().max(400),
+    observations: z.array(imageObservationSchema).max(9),
+  })
+  .strict();
+export const imageResponseSchema = imageOutcomeSchema
+  .extend({
+    runId: z.string().uuid(),
+    batchId: z.string().uuid(),
+    snapshotId: z.string().uuid(),
+  })
+  .strict();
+export type ImageRequest = z.infer<typeof imageRequestSchema>;
+export type ImageOutcome = z.infer<typeof imageOutcomeSchema>;
+export type ImageObservation = z.infer<typeof imageObservationSchema>;

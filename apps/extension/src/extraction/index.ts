@@ -17,7 +17,50 @@ export function isLinkedInProfile(href: string): boolean {
     /^\/in\/[^/]+\/?$/.test(url.pathname)
   );
 }
+function isInstagram(url: URL): boolean {
+  return url.hostname === 'instagram.com' || url.hostname === 'www.instagram.com';
+}
+function instagramHandle(href: string): string | null {
+  const url = new URL(href);
+  if (!isInstagram(url)) return null;
+  const handle = url.pathname.match(/^\/([a-z0-9._]{1,30})\/?$/i)?.[1];
+  if (
+    !handle ||
+    /^(accounts|about|api|challenge|developer|developers|direct|directory|emails|explore|legal|oauth|p|privacy|push|reel|reels|stories|terms|tv|web)$/i.test(
+      handle,
+    )
+  )
+    return null;
+  return handle;
+}
+function instagramOwner(root: HTMLElement, href: string): string {
+  const handle = instagramHandle(href);
+  const headings = [...root.querySelectorAll('h1,h2,[role="heading"]')].filter(isVisible);
+  return handle &&
+    headings.some(
+      (node) => visibleText(node).replace(/^@/, '').toLowerCase() === handle.toLowerCase(),
+    )
+    ? `@${handle}`
+    : '';
+}
+function instagramBioNodes(root: HTMLElement): Element[] {
+  const selector = 'p,[dir="auto"]';
+  return [...root.querySelectorAll(selector)].filter(
+    (node) =>
+      isVisible(node) &&
+      !node.closest('a,button,[role="button"],h1,h2,[role="heading"],ul,ol,[role="dialog"]') &&
+      !node.querySelector(selector),
+  );
+}
 export function profileRoot(doc: Document, href = doc.location.href): HTMLElement | null {
+  // Read only a profile header whose visible username matches the current route.
+  // Never fall back to the feed, grid, post dialogs, or document metadata.
+  if (isInstagram(new URL(href))) {
+    const headers = [
+      ...doc.querySelectorAll<HTMLElement>('main header,[role="main"] header'),
+    ].filter((node) => isVisible(node) && instagramOwner(node, href));
+    return headers.length === 1 ? headers[0]! : null;
+  }
   // LinkedIn's newer layout uses a labelled container instead of a main element.
   if (isLinkedInProfile(href)) {
     const primary = doc.querySelector<HTMLElement>('[aria-label="Primary content"]');
@@ -29,6 +72,7 @@ export function profileRoot(doc: Document, href = doc.location.href): HTMLElemen
   );
 }
 function ownerName(doc: Document, root: HTMLElement, href: string): string {
+  if (isInstagram(new URL(href))) return instagramOwner(root, href);
   const names = [...root.querySelectorAll('h1')].filter(
     (node) => isVisible(node) && !node.closest('[role="dialog"]'),
   );
@@ -64,6 +108,7 @@ export async function extractProfile(
   const url = new URL(href);
   if (
     !['http:', 'https:'].includes(url.protocol) ||
+    (isInstagram(url) && !instagramHandle(href)) ||
     /\/(?:feed|messaging|inbox|search|company|companies)(?:\/|$)/i.test(url.pathname)
   )
     throw new Error('Open an individual profile, or paste their profile text instead.');
@@ -74,11 +119,14 @@ export async function extractProfile(
     throw new Error('This page does not identify one profile owner. Use Paste profile text.');
   const displayName = name.slice(0, 120);
   const linkedin = isLinkedInProfile(href);
+  const instagram = isInstagram(url);
   const selector = 'p,li';
   const sections = linkedin ? [...linkedInHeader(root), ...linkedInSections(root)] : [];
-  const nodes = linkedin
-    ? sections.map(({ node }) => node)
-    : [...root.querySelectorAll(selector)].filter(isVisible);
+  const nodes = instagram
+    ? instagramBioNodes(root)
+    : linkedin
+      ? sections.map(({ node }) => node)
+      : [...root.querySelectorAll(selector)].filter(isVisible);
   const evidence: Evidence[] = [];
   const seen = new Set<string>();
   const safetyParts: string[] = [];
@@ -87,14 +135,14 @@ export async function extractProfile(
   const blocks =
     captured?.blocks ??
     nodes.slice(0, 250).flatMap((node) => {
-      if (!linkedin && node.querySelector(selector)) return [];
+      if (!linkedin && !instagram && node.querySelector(selector)) return [];
       return [
         {
           text: linkedin ? linkedInText(node) : visibleText(node),
           label: cleanText(
             sections.find((section) => section.node === node)?.label ??
               node.closest('section')?.querySelector('h2,h3')?.textContent ??
-              'Profile',
+              (instagram ? 'Instagram bio' : 'Profile'),
           ).slice(0, 80),
         },
       ];
@@ -135,7 +183,9 @@ export async function extractProfile(
   if (nodes.length > 250) truncated = true;
   if (evidence.length === 0)
     throw new Error(
-      'The profile opened, but no readable profile details were found. Let the About or Experience sections load, then try again, or paste profile text.',
+      instagram
+        ? 'The profile opened, but no readable profile details were found in the Instagram bio. Let the profile load, then try again, or paste profile text.'
+        : 'The profile opened, but no readable profile details were found. Let the About or Experience sections load, then try again, or paste profile text.',
     );
   return {
     profile: {
@@ -148,7 +198,7 @@ export async function extractProfile(
     tabId: null,
     routeFingerprint: await fingerprint(identityText(doc, href)),
     canonicalDisplayUrl: `${url.origin}${url.pathname}`,
-    adapterId: linkedin ? 'linkedin-best-effort' : 'generic',
+    adapterId: instagram ? 'instagram-best-effort' : linkedin ? 'linkedin-best-effort' : 'generic',
     capturedAt: new Date().toISOString(),
     inputRevision: 0,
     captureWarnings: captured?.warnings,

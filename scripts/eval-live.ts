@@ -24,7 +24,7 @@ const profile = manualProfile(
 let failed = false;
 for (const mode of Object.values(serverModes)) {
   const request: AnalysisRequest = {
-    schemaVersion: '1',
+    schemaVersion: '2',
     catalogueVersion: '1',
     requestId: crypto.randomUUID(),
     mode: mode.id,

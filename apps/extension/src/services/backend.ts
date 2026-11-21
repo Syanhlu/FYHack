@@ -14,6 +14,7 @@ export async function checkConnection(token: string) {
         : 'Connection rejected. Check ALLOWED_EXTENSION_ORIGIN on the backend.',
     );
   return response.json() as Promise<{
+    images?: { enabled: boolean; maxPhotos: number; batchSize: number };
     provider: string;
     schemaVersion: string;
     catalogueVersion: string;

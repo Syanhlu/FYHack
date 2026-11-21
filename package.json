@@ -19,7 +19,8 @@
     "test:e2e": "pnpm build:test && playwright test",
     "lint": "eslint .",
     "eval:live": "node --import tsx scripts/eval-live.ts",
-    "package:demo": "pnpm --dir apps/extension zip"
+    "package:demo": "pnpm --dir apps/extension zip",
+    "eval:images": "node --import tsx scripts/eval-images.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -37,6 +38,7 @@
     "prettier": "3.10.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
+    "sharp": "0.35.5",
     "tsx": "4.23.15",
     "typescript": "5.9.3",
     "typescript-eslint": "8.73.0",

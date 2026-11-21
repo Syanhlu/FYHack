@@ -75,3 +75,35 @@ describe('contracts and evidence', () => {
     expect(songs.every((song) => song.source.startsWith('https://'))).toBe(true);
   });
 });
+
+describe('visual evidence provenance', () => {
+  it('requires visual attribution and a source image reference together', () => {
+    const input = request();
+    input.profile.evidence[0] = { ...input.profile.evidence[0], sourceKind: 'visual' };
+    expect(requestSchema.safeParse(input).success).toBe(false);
+    input.profile.evidence[0] = {
+      ...input.profile.evidence[0],
+      attribution: 'visual_observation',
+      sourceImageId: crypto.randomUUID(),
+      observationKind: 'scene',
+    };
+    expect(requestSchema.safeParse(input).success).toBe(true);
+  });
+  it('does not turn a visual observation into an exact quote by the owner', () => {
+    const input = request();
+    input.profile.evidence[0] = {
+      id: 'e1',
+      text: 'A bicycle is visible.',
+      sourceKind: 'visual',
+      attribution: 'visual_observation',
+      sourceImageId: crypto.randomUUID(),
+      observationKind: 'scene',
+      sectionLabel: 'Photo 1',
+    };
+    const raw = output('outreach');
+    const result = raw.result as OutreachResult;
+    result.moodboard.tiles[4].quoteText = 'A bicycle is visible.';
+    result.moodboard.tiles[4].evidenceIds = ['e1'];
+    expect(() => validateOutcome(serverModes.outreach, raw, input)).toThrow(/quote/);
+  });
+});

@@ -28,6 +28,8 @@ import {
   type ModeId,
   type UserContext,
 } from '@profile-lens/contracts';
+import { ImageReview } from '../../src/components/ImageReview';
+import { profileSchema, type Evidence } from '@profile-lens/contracts';
 import { clientModes } from '../../src/modes';
 import { analyse, checkConnection } from '../../src/services/backend';
 import { capture, isCurrent, readToken, release, saveToken } from '../../src/services/browser';
@@ -52,6 +54,7 @@ export default function App() {
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState('');
   const [pasteName, setPasteName] = useState('');
+  const [imageBusy, setImageBusy] = useState(false);
   const [cached, setCached] = useState(false);
   const epoch = useRef(0);
   const abort = useRef<AbortController | null>(null);
@@ -184,12 +187,40 @@ export default function App() {
                   ? {
                       ...e,
                       text: value,
-                      attribution: 'user_supplied',
-                      sourceKind: 'manual',
+                      attribution:
+                        e.sourceKind === 'visual' ? 'visual_observation' : 'user_supplied',
+                      sourceKind: e.sourceKind === 'visual' ? 'visual' : 'manual',
                       sectionLabel: 'Edited by you',
                     }
                   : e,
               ),
+      },
+    });
+  };
+  const acceptVisual = (evidence: Evidence) => {
+    if (!snapshot) return;
+    const profile = profileSchema.safeParse({
+      ...snapshot.profile,
+      evidence: [...snapshot.profile.evidence, evidence],
+    });
+    if (!profile.success) {
+      setError('Remove some evidence before accepting more observations.');
+      return;
+    }
+    invalidate();
+    setSnapshot({ ...snapshot, profile: profile.data, inputRevision: snapshot.inputRevision + 1 });
+  };
+  const removeVisual = (imageId?: string) => {
+    if (!snapshot) return;
+    invalidate();
+    setSnapshot({
+      ...snapshot,
+      inputRevision: snapshot.inputRevision + 1,
+      profile: {
+        ...snapshot.profile,
+        evidence: snapshot.profile.evidence.filter((e) =>
+          imageId ? e.sourceImageId !== imageId : e.sourceKind !== 'visual',
+        ),
       },
     });
   };
@@ -322,7 +353,7 @@ export default function App() {
       setChecking(false);
     }
   };
-  const busy = stage === 'analysing' || stage === 'extracting';
+  const busy = stage === 'analysing' || stage === 'extracting' || imageBusy;
   return (
     <main className={`app theme-${mode.theme}`}>
       <header className="app-header">
@@ -363,6 +394,7 @@ export default function App() {
               autoComplete="off"
               value={token}
               onChange={(e) => {
+                removeVisual();
                 setToken(e.target.value);
                 setConnection('');
                 invalidate();
@@ -404,6 +436,8 @@ export default function App() {
             aria-pressed={item.id === modeId}
             onClick={() => {
               invalidate();
+              removeVisual();
+              setImageBusy(false);
               setModeId(item.id);
               setConfig({ ...item.defaults });
             }}
@@ -453,7 +487,8 @@ export default function App() {
             Or paste profile text
           </button>
           <p className="privacy-note">
-            <ShieldCheck size={14} /> Nothing leaves this browser until you generate.
+            <ShieldCheck size={14} /> Nothing leaves this browser until you generate or analyse
+            photos.
           </p>
         </section>
       )}
@@ -517,6 +552,18 @@ export default function App() {
           >
             <ScanText size={17} /> Read this profile again
           </button>
+          {snapshot.adapterId === 'instagram-best-effort' && (
+            <ImageReview
+              key={`${snapshot.profile.snapshotId}:${modeId}:${token}`}
+              snapshot={snapshot}
+              revision={epoch.current}
+              token={token}
+              disabled={stage === 'analysing'}
+              onBusy={setImageBusy}
+              onAccept={acceptVisual}
+              onRemove={removeVisual}
+            />
+          )}
           {stage !== 'ready' && (
             <section className="review">
               <div className="section-heading">
@@ -622,6 +669,7 @@ export default function App() {
                   <button
                     className="button primary full"
                     disabled={
+                      imageBusy ||
                       !snapshot.profile.evidence.length ||
                       !!mode.inputIssue(snapshot.profile, config)
                     }
@@ -650,6 +698,7 @@ export default function App() {
                 <button
                   className="icon-button"
                   aria-label="Regenerate"
+                  disabled={imageBusy}
                   onClick={() => void generate(true)}
                 >
                   <RefreshCw size={15} />

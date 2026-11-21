@@ -129,7 +129,7 @@ describe('local API', () => {
   it('rejects version mismatches and oversized bodies', async () => {
     const { app } = make();
     const input = request();
-    input.schemaVersion = '2';
+    input.schemaVersion = '99';
     expect(
       (await app.inject({ method: 'POST', url: '/v1/analyse', headers, payload: input }))
         .statusCode,

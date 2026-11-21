@@ -926,3 +926,23 @@ blockquote small {
     scroll-behavior: auto !important;
   }
 }
+
+.image-review {
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid var(--line, #dedbd5);
+  border-radius: 12px;
+}
+.photo-review {
+  margin-top: 1rem;
+}
+.photo-review > summary {
+  cursor: pointer;
+  padding: 0.5rem 0;
+}
+.photo-review > img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}

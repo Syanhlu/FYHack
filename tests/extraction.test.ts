@@ -60,3 +60,96 @@ describe('profile extraction', () => {
     );
   });
 });
+
+describe('Instagram profile extraction', () => {
+  const href = 'https://www.instagram.com/alex.morgan/?utm_source=test';
+  function profile(bio = 'I enjoy pottery, hiking and building accessible tools.') {
+    document.body.innerHTML = `<main><header>
+      <section><h2>alex.morgan</h2><button><span dir="auto">Follow this account</span></button></section>
+      <ul><li><span dir="auto">12345 followers</span></li></ul>
+      <section><span dir="auto">Alex Morgan</span><div><span dir="auto">${bio}</span></div>
+      <a href="https://example.com"><span dir="auto">My external website</span></a>
+      <span dir="auto" hidden>Hidden profile details</span>
+      <aside><span dir="auto">Suggested account biography</span></aside></section>
+      </header><article><p>A third-party post caption about skiing.</p><img alt="A person playing tennis" /></article>
+      <div role="dialog"><p>A private message or post comment.</p></div></main>`;
+  }
+  it('reads only visible header biography, with handle identity and existing redaction', async () => {
+    profile('I enjoy pottery and hiking. Contact alex@example.com.');
+    const result = await extractProfile(document, href);
+    expect(result.adapterId).toBe('instagram-best-effort');
+    expect(result.profile.displayName).toBe('@alex.morgan');
+    expect(result.canonicalDisplayUrl).toBe('https://www.instagram.com/alex.morgan/');
+    expect(result.profile.evidence).toEqual([
+      expect.objectContaining({
+        text: 'I enjoy pottery and hiking. Contact [email removed].',
+        sourceKind: 'bio',
+        sectionLabel: 'Instagram bio',
+        attribution: 'profile_owner',
+      }),
+    ]);
+  });
+  it.each([
+    '/',
+    '/explore/',
+    '/direct/inbox/',
+    '/p/abc/',
+    '/reel/abc/',
+    '/stories/alex/1/',
+    '/accounts/login/',
+    '/alex.morgan/tagged/',
+  ])('rejects non-profile route %s', async (path) => {
+    profile();
+    await expect(extractProfile(document, `https://www.instagram.com${path}`)).rejects.toThrow(
+      /individual profile/,
+    );
+  });
+  it('supports the bare domain and case-insensitive username headings', async () => {
+    profile();
+    document.querySelector('h2')!.textContent = '@Alex.Morgan';
+    expect((await extractProfile(document, 'https://instagram.com/alex.morgan')).adapterId).toBe(
+      'instagram-best-effort',
+    );
+  });
+  it('rejects stale or missing owner headings, even with matching metadata', async () => {
+    profile();
+    document.title = 'Alex Morgan (@alex.morgan) • Instagram photos and videos';
+    const before = identityText(document, href);
+    document.querySelector('h2')!.textContent = 'jamie.lee';
+    expect(identityText(document, href)).not.toBe(before);
+    await expect(extractProfile(document, href)).rejects.toThrow(/No main profile/);
+    document.querySelector('h2')!.remove();
+    await expect(extractProfile(document, href)).rejects.toThrow(/No main profile/);
+  });
+  it('rejects ambiguous duplicate headers and hidden owners', async () => {
+    profile();
+    document.querySelector('main')!.append(document.querySelector('header')!.cloneNode(true));
+    await expect(extractProfile(document, href)).rejects.toThrow(/No main profile/);
+    profile();
+    document.querySelector('h2')!.hidden = true;
+    await expect(extractProfile(document, href)).rejects.toThrow(/No main profile/);
+  });
+  it('does not read images or grid text when the bio is empty', async () => {
+    profile('');
+    await expect(extractProfile(document, href)).rejects.toThrow(/Instagram bio/);
+  });
+  it('preserves eligibility checks and evidence limits', async () => {
+    profile(`I am 17. Please don't message me. ${'I enjoy pottery. '.repeat(1000)}`);
+    const result = await extractProfile(document, href);
+    expect(result.profile.eligibilitySignals).toEqual({
+      minorMentioned: true,
+      noRomanticContact: true,
+    });
+    expect(result.profile.truncated).toBe(true);
+    expect(result.profile.evidence.reduce((n, e) => n + e.text.length, 0)).toBeLessThanOrEqual(
+      12000,
+    );
+    expect(result.profile.evidence.every((e) => e.text.length <= 600)).toBe(true);
+  });
+  it('does not apply the Instagram adapter to lookalike domains', async () => {
+    profile();
+    await expect(
+      extractProfile(document, 'https://instagram.com.example.org/alex.morgan/'),
+    ).rejects.toThrow(/one profile/);
+  });
+});

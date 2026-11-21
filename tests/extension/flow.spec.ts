@@ -26,7 +26,7 @@ const test = base.extend<{
     const worker = context.serviceWorkers()[0] ?? (await context.waitForEvent('serviceworker'));
     await use(new URL(worker.url()).host);
   },
-  calls: async ({ extensionId }, use) => {
+  calls: async ({ extensionId, context }, use) => {
     const calls: AnalysisRequest[] = [];
     const app = buildApp({
       token: 'integration-test-token-only',
@@ -38,7 +38,23 @@ const test = base.extend<{
         },
       },
     });
-    await app.listen({ port: 8787, host: '127.0.0.1' });
+    // Route to the isolated API without binding the user's development port.
+    await context.route('http://127.0.0.1:8787/**', async (route) => {
+      const req = route.request();
+      const response = await app.inject({
+        method: req.method() as 'GET' | 'POST' | 'OPTIONS',
+        url: new URL(req.url()).pathname,
+        headers: await req.allHeaders(),
+        payload: req.postData() ?? undefined,
+      });
+      await route.fulfill({
+        status: response.statusCode,
+        headers: Object.fromEntries(
+          Object.entries(response.headers).map(([k, v]) => [k, String(v)]),
+        ),
+        body: response.body,
+      });
+    });
     await use(calls);
     await app.close();
   },

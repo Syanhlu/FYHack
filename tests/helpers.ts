@@ -11,7 +11,7 @@ export const sampleText =
   'I am 29. I build accessible developer tools and mentor open-source contributors.\nI enjoy pottery, cycling, coffee and second-hand bookshops.';
 export function request(mode = 'outreach'): AnalysisRequest {
   return {
-    schemaVersion: '1',
+    schemaVersion: '2',
     catalogueVersion: '1',
     requestId: crypto.randomUUID(),
     mode,

@@ -31,7 +31,8 @@ The OpenAI key stays in the server environment. Do not paste it into the extensi
 ## What is implemented
 
 - WXT / React / TypeScript Manifest V3 extension with a side panel and temporary `activeTab` extraction.
-- Generic individual-profile extraction, a best-effort LinkedIn adapter, and manual paste fallback. LinkedIn capture scrolls, expands section text and dialogs, and attempts same-profile Show all detail views.
+- Generic individual-profile extraction, best-effort LinkedIn and Instagram adapters, and manual paste fallback. LinkedIn capture scrolls, expands section text and dialogs, and attempts same-profile Show all detail views.
+- Optional automatic Instagram photo analysis: up to 50 unique photos from opened posts and carousels, local cropping, bounded scrolling, three-photo batches, Stop, and reviewed visual/OCR evidence.
 - Editable/removable evidence, optional user context, mode-specific preferences, and source drawers.
 - Separate shared/server/client mode registries; adding a mode does not require changing the extractor or endpoint orchestration.
 - OpenAI Responses API adapter, strict mode schemas, citation/quote/catalogue validation, deadlines, cancellation, rate limits, and typed failure states.
@@ -51,10 +52,11 @@ pnpm exec playwright install chromium
 pnpm test:e2e             # isolated test build, local API double, Chromium
 pnpm build                # restore the production build before loading/demoing it
 pnpm eval:live            # opt-in paid smoke check for both modes
+pnpm eval:images          # opt-in paid image smoke check using a generated fixture
 pnpm package:demo         # zip the normal live extension; no credentials
 ```
 
-Tests bind local ports 4173 and 8787. Stop your development API before running integration tests. Browser tests use an ephemeral profile and never interact with your personal browser profile.
+Browser tests serve sample pages on port 4173 and route API requests to isolated test instances; they do not bind the development API port. Browser tests use an ephemeral profile and never interact with your personal browser profile.
 
 `test:e2e` builds with an additional **test-only localhost host permission** so Chromium can exercise injection without automating Chrome's toolbar. **Always run `pnpm build` afterward** before loading the extension for ordinary use. Test output is in `test-results/` and is gitignored.
 
@@ -64,7 +66,7 @@ Tested toolchain: Node **26.5.0** for the initial implementation and **24.22.3**
 
 ## Data handling
 
-Reading a profile stays local until **Generate ideas**. Reviewed evidence and optional context then go to the local API and OpenAI. The API uses `store: false`; this is not a promise of zero provider retention. No application profile database, analytics, body/prompt logging, or background crawling is implemented.
+Reading profile text stays local until **Generate ideas**. Reviewed evidence and optional context then go to the local API and OpenAI. The separate **Analyse profile images** action sends locally cropped photo pixels to the same backend/provider before observation review. Full-page screenshots and page/CDN URLs are not sent. Contact redaction of OCR does not remove contact details from image pixels. The API uses `store: false`; this is not a promise of zero provider retention. No application profile database, analytics, body/prompt logging, or background crawling is implemented.
 
 Profile snapshots, results, and edited drafts live in panel memory and disappear when the panel document closes, the profile changes, the session expires, or **Clear session** is used. The backend token is in trusted extension session storage. Only opted-in self-context is saved in local storage. **Reset local settings** removes both settings and the token.
 
@@ -74,9 +76,19 @@ Extraction is intentionally conservative and excludes hidden content, forms, sid
 
 - Live smoke checks passed for both modes using `gpt-5.4-mini`. The installed Chrome extension also completed a live Outreach analysis from the fictional sample page. This verifies that the integration works; broader factual and suggestion-quality evaluation remains in [the demo runbook](docs/DEMO_SCRIPT.md).
 - Native Chrome installation, toolbar access, side-panel extraction, local authentication, and Outreach generation have been verified. Continue the remaining tab/domain, restricted-page, and accessibility checks before presenting.
-- LinkedIn extraction is best-effort and has not been verified against a real logged-in account. Capture takes up to roughly a minute, restores the original scroll position, and reports blocked or unfinished sections. Detail pages are rendered in temporary same-origin frames; LinkedIn may block these. LinkedIn evidence is capped at 120 snippets / 60,000 characters with a visible truncation notice. Generic extraction and manual paste retain their 30-snippet / 12,000-character capture limits. Use a personal page or paste text when parsing fails. Other social platforms have no dedicated adapter.
+- LinkedIn and Instagram extraction are best-effort and have not been verified against real logged-in accounts. LinkedIn capture takes up to roughly a minute, restores the original scroll position, and reports blocked or unfinished sections. Detail pages are rendered in temporary same-origin frames; LinkedIn may block these. LinkedIn evidence is capped at 120 snippets / 60,000 characters with a visible truncation notice. Other adapters and manual paste retain their 30-snippet / 12,000-character capture limits. Instagram reads visible profile-header bio text only after matching the username to the profile URL; feeds, posts, reels, stories, and tagged pages are unsupported. Text capture does not read photos, captions, or comments. Optional photo analysis opens posts from the profile grid and advances their photo carousels. Reels and stories are excluded. Post controls currently require recognisable English labels and a modal layout; unsupported layouts stop with an explanation. Use a personal page or paste text when parsing fails.
 - Boards use original editorial illustrations, not generated photos or scraped profile photos. The music catalogue is deliberately small (two artists) and can be extended in `packages/catalogues`.
 - Panel state is memory-only; closing and reopening the panel may require another capture. No result history or remote persistence.
 - Provider retries are manual in this slice; requests have one deadline and no automatic duplicate spend.
 
 See [architecture](docs/ARCHITECTURE.md), [adding a mode](docs/ADDING_A_MODE.md), [credits](CREDITS.md), and the [full implementation plan](CHROME_EXTENSION_IMPLEMENTATION_PLAN.md).
+
+## Enable automatic photo analysis
+
+Set `IMAGE_ANALYSIS_ENABLED=true` in your local `.env`, and set `OPENAI_IMAGE_MODEL` to a model with image input and structured output support (otherwise it uses `OPENAI_MODEL`). Restart the API, rebuild/reload the extension, and read an Instagram profile. Select **Analyse profile images**, keep Instagram visible while it opens posts and scrolls, then review and accept observations before generating ideas. No manual uploads are needed.
+
+A run opens posts from the captured profile, advances up to 20 photo slides per post, closes each post, and scrolls the grid for more. Progress shows captured, analysed and skipped counts, with reasons for skipped photos. It inspects at most 50 unique usable photos in batches of three, then returns to the profile when its Close control is available. Photos are analysed as displayed, including overlays within the image area. It may finish earlier when the grid ends, a browsing limit is reached, or you interact with the page. **Stop photo analysis** preserves completed observations; Clear session or changing profiles removes them. Capture still requires the toolbar-granted `activeTab` permission; no additional host permissions were added.
+
+`IMAGE_BATCH_BUDGET_USD` (default `0.05`) reserves an estimated amount before each paid batch, including failed attempts. `IMAGE_RUN_BUDGET_USD` (default `1`) caps those reservations. Set a conservative batch estimate for your model's current prices: this is an application estimate, not a provider-enforced dollar limit. There are no automatic retries. Image analysis is disabled by default pending verification on the target account/browser.
+
+See [implementation details and remaining validation](docs/IMAGE_ANALYSIS_PLAN.md).

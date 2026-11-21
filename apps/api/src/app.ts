@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import { registerImageRoutes, type ImageOptions } from './images';
 import cors from '@fastify/cors';
 import { timingSafeEqual } from 'node:crypto';
 import {
@@ -12,6 +13,7 @@ import { serverModes, validateOutcome, type ServerMode } from './modes/index';
 import { ProviderFailure, type AnalysisProvider } from './providers/live';
 
 export interface AppOptions {
+  images?: ImageOptions;
   provider: AnalysisProvider;
   token: string;
   allowedOrigin: string;
@@ -69,8 +71,10 @@ export function buildApp(options: AppOptions) {
     provider: 'live',
     schemaVersion: SCHEMA_VERSION,
     catalogueVersion: CATALOGUE_VERSION,
+    images: { enabled: !!options.images, maxPhotos: 50, batchSize: 3 },
     modes: Object.values(modes).map((m) => ({ id: m.id, version: m.version })),
   }));
+  registerImageRoutes(app, options.images, options.timeoutMs);
   app.post('/v1/analyse', async (request, reply) => {
     if (!request.headers['content-type']?.startsWith('application/json'))
       return reply.code(415).send(fail('INVALID_INPUT', 'Send application/json.', request.id));
@@ -127,7 +131,7 @@ export function buildApp(options: AppOptions) {
     });
     const gate = mode.eligibility(input);
     if (gate) return envelope(gate);
-    if (!input.profile.evidence.some((e) => e.text.length >= 20))
+    if (!input.profile.evidence.some((e) => e.sourceKind !== 'visual' && e.text.length >= 20))
       return envelope({
         status: 'insufficient',
         reason: 'Add a biography, project, or stated interest beyond just a name.',
