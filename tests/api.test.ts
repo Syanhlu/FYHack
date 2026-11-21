@@ -140,7 +140,7 @@ describe('local API', () => {
           method: 'POST',
           url: '/v1/analyse',
           headers: { ...headers, 'content-type': 'application/json' },
-          payload: JSON.stringify({ huge: 'x'.repeat(600000) }),
+          payload: JSON.stringify({ huge: 'x'.repeat(1100000) }),
         })
       ).statusCode,
     ).toBe(413);

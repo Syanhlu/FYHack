@@ -32,7 +32,7 @@ The OpenAI key stays in the server environment. Do not paste it into the extensi
 
 - WXT / React / TypeScript Manifest V3 extension with a movable in-page overlay and temporary `activeTab` extraction.
 - Generic individual-profile extraction, best-effort LinkedIn and Instagram adapters, and manual paste fallback. LinkedIn capture scrolls, expands section text and dialogs, and attempts same-profile Show all detail views.
-- Optional automatic Instagram photo analysis: up to 50 unique photos from opened posts and carousels, local cropping, bounded scrolling, three-photo batches, Stop, and reviewed visual/OCR evidence.
+- Optional automatic Instagram photo analysis: up to 50 unique photos from opened posts and carousels, local cropping, bounded scrolling, three-photo batches, Stop, and automatically included visual/OCR evidence.
 - Editable/removable evidence, optional user context, mode-specific preferences, and source drawers.
 - Detail-led analysis: distinctive clues, connections between supported statements, and natural questions. Personality-related notes describe only the person's own self-descriptions and motivations; photos supply observable details, not personality judgements.
 - Separate shared/server/client mode registries; adding a mode does not require changing the extractor or endpoint orchestration.
@@ -86,7 +86,7 @@ See [architecture](docs/ARCHITECTURE.md), [adding a mode](docs/ADDING_A_MODE.md)
 
 ## Enable automatic photo analysis
 
-Set `IMAGE_ANALYSIS_ENABLED=true` in your local `.env`, and set `OPENAI_IMAGE_MODEL` to a model with image input and structured output support (otherwise it uses `OPENAI_MODEL`). Restart the API, rebuild/reload the extension, and read an Instagram profile. Select **Analyse profile images**, keep Instagram visible while it opens posts and scrolls, then review and accept observations before generating ideas. No manual uploads are needed.
+Set `IMAGE_ANALYSIS_ENABLED=true` in your local `.env`, and set `OPENAI_IMAGE_MODEL` to a model with image input and structured output support (otherwise it uses `OPENAI_MODEL`). Restart the API, rebuild/reload the extension, and read an Instagram profile. Select **Analyse profile images**, keep Instagram visible while it opens posts and scrolls, completed observations are automatically included as evidence. Expand **Photo analyses** to see the original photos, or **Their photo evidence** to edit or remove observations before generating ideas. No manual uploads or approval clicks are needed. The input form separates **Their profile text** and **Their photo evidence** from **About you** and **Your preferences for this conversation**; CV uploads always describe you.
 
 Before starting, use **Maximum photos** to choose 1–50 photos (default 50). The limit stays fixed for that run, includes individual carousel slides, and appears in the progress counter. Re-read the profile to start another run.
 

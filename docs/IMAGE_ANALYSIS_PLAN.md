@@ -8,7 +8,7 @@ Read an Instagram profile, then select **Analyse profile images**. Profile Lens 
 
 The cap is **50 unique photos per run**, processed in batches of three. Each post contributes at most 20 slides. Navigation is bounded by 200 opened posts, 250 advances, 60 grid scrolls, and five minutes of active discovery time (excluding provider waits). Three grid scrolls without a new post end discovery. A completed or stopped run closes its owned post and restores the original scroll position when safe; if closing fails, the panel reports the failure. It never navigates back from an unrelated page or closes an unrelated post.
 
-Review thumbnails, visual observations, and OCR text. Explicitly accepted observations become visual evidence for **Generate ideas**, retaining source-image references and uncertainty. Photo observations do not establish the owner's identity, age, sensitive traits, personality, preferences, or ownership of depicted objects. Existing adult confirmation, text requirements, and contact boundaries still apply.
+Expand the collapsed **Photo analyses** to view thumbnails, visual observations, and OCR text; edit or remove included details under **Their photo evidence**. Completed observations automatically become visual evidence for **Generate ideas**, retaining source-image references and uncertainty. Photo observations do not establish the owner's identity, age, sensitive traits, personality, preferences, or ownership of depicted objects. Existing adult confirmation, text requirements, and contact boundaries still apply.
 
 ## Capture and navigation
 
@@ -24,7 +24,7 @@ The panel captures the active viewport and crops the photo locally. It checks ac
 
 ## API and model
 
-`apps/api/src/images.ts` creates authenticated expiring run IDs and accepts three-photo batches through `/v1/analyse-images`. It decodes and validates actual pixels with Sharp, strips metadata, rejects duplicate IDs/content/batches, and enforces a 50-photo ceiling and 17-attempt ceiling. Image requests have a separate 5 MiB limit. Existing text endpoint limits remain 512 KiB, 120 evidence items and 60,000 characters; the shared contract version is `2`.
+`apps/api/src/images.ts` creates authenticated expiring run IDs and accepts three-photo batches through `/v1/analyse-images`. It decodes and validates actual pixels with Sharp, strips metadata, rejects duplicate IDs/content/batches, and enforces a 50-photo ceiling and 17-attempt ceiling. Image requests have a separate 5 MiB limit. The text endpoint accepts up to 1 MiB, retaining the 120-snippet/60,000-character limit for profile text plus up to 150 photo observations (600 characters each), so all three observations from each of 50 photos can be included; the shared contract version is `2`.
 
 `providers/images.ts` sends cropped image bytes to the configured OpenAI image model with high-detail image input and structured outputs. It requests observable scene details and legible text, with uncertainty, and treats image text as untrusted input. The server validates references and redacts contact details from returned text. This text redaction does not remove information from image pixels sent to the provider.
 
@@ -38,7 +38,7 @@ Stop preserves completed observations on the same profile. Changing profiles/mod
 
 ## Verification and remaining limitations
 
-- Unit/API/component tests cover 0/1/49/50/over-50-photo runs, batching, duplicates, image validation, deadlines, budgets, expiry, explicit review, visual provenance, cancellation, and stale geometry.
+- Unit/API/component tests cover 0/1/49/50/over-50-photo runs, batching, duplicates, image validation, deadlines, budgets, expiry, automatic inclusion, editing/removal, visual provenance, cancellation, and stale geometry.
 - Chromium fixtures cover opening posts, stepping through a carousel, scrolling to another post, cropping larger media without comments/page background, restoring the profile, interruption, stale-run isolation, and unrelated navigation. Regression fixtures include article-free dialogs, unchanged profile URLs, and image loading longer than the former three-second deadline.
 - `pnpm eval:images` is an opt-in paid smoke check using a generated pottery illustration. It passed with `gpt-5.4` and medium reasoning (two observations, about 4.5 seconds). No personal photos are used in the smoke check.
 - Real Instagram layouts, localisation, mixed video/photo carousels, and broader output quality need manual evaluation. Video analysis, stories, hidden media, full-page post layouts, and bypassing access restrictions are outside this implementation.

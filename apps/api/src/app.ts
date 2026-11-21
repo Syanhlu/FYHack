@@ -22,7 +22,7 @@ export interface AppOptions {
   modes?: Record<string, ServerMode>;
 }
 export function buildApp(options: AppOptions) {
-  const app = Fastify({ bodyLimit: 512 * 1024, logger: false });
+  const app = Fastify({ bodyLimit: 1024 * 1024, logger: false });
   const modes = options.modes ?? serverModes;
   const validToken = Buffer.from(`Bearer ${options.token}`);
   const recentRequests: number[] = [];

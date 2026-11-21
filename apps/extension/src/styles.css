@@ -940,6 +940,22 @@ blockquote small {
 .photo-review {
   margin-top: 1rem;
 }
+.photo-results > summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.75rem 0;
+}
+.photo-results > summary::before {
+  content: '▸ ';
+}
+.photo-results[open] > summary::before {
+  content: '▾ ';
+}
+.input-owner-heading {
+  border-top: 1px solid var(--line);
+  margin-top: 24px;
+  padding-top: 18px;
+}
 .photo-limit input[type='range'] {
   padding: 0;
   margin: 8px 0 0;

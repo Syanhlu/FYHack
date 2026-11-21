@@ -205,18 +205,26 @@ export default function App() {
       },
     });
   };
-  const acceptVisual = (evidence: Evidence) => {
-    if (!snapshot) return;
+  const acceptVisual = (evidence: Evidence[], snapshotId: string) => {
+    const latest = currentSnapshot.current;
+    if (!latest || latest.profile.snapshotId !== snapshotId || !evidence.length) return;
+    const existing = new Set(latest.profile.evidence.map((e) => e.id));
     const profile = profileSchema.safeParse({
-      ...snapshot.profile,
-      evidence: [...snapshot.profile.evidence, evidence],
+      ...latest.profile,
+      evidence: [...latest.profile.evidence, ...evidence.filter((e) => !existing.has(e.id))],
     });
     if (!profile.success) {
-      setError('Remove some evidence before accepting more observations.');
-      return;
+      throw new Error('Photo evidence could not be added. Completed evidence is still available.');
     }
-    invalidate();
-    setSnapshot({ ...snapshot, profile: profile.data, inputRevision: snapshot.inputRevision + 1 });
+    // These are updates from the active run, not user edits. Do not cancel that run
+    // by incrementing epoch/inputRevision. The generation cache keys include evidence.
+    const next = { ...latest, profile: profile.data };
+    currentSnapshot.current = next;
+    setSnapshot(next);
+    setResult(null);
+    setCached(false);
+    cache.current.clear();
+    setStage('reviewing');
   };
   const removeVisual = (imageId?: string) => {
     if (!snapshot) return;
@@ -439,7 +447,7 @@ export default function App() {
           </label>
           <p className="hint mono">Extension ID: {chrome.runtime.id}</p>
           <label className="context-label">
-            Your CV <span>optional · used in Outreach</span>
+            Your CV <span>optional · about you · used in Outreach</span>
             <input
               type="file"
               accept=".pdf,.txt,.md,application/pdf,text/plain"
@@ -449,6 +457,10 @@ export default function App() {
               }}
             />
           </label>
+          <p className="hint">
+            Upload your own CV so introductions can explain your background and find common ground
+            with the profile owner.
+          </p>
           {cv && (
             <p className="hint">
               Using {cv.name} ({cv.text.length.toLocaleString()} characters).{' '}
@@ -562,9 +574,12 @@ export default function App() {
       )}
       {pasteOpen && !snapshot && (
         <section className="paste-panel">
-          <h2>Bring a little context</h2>
+          <h2>About the person you’re viewing</h2>
+          <p className="hint">
+            Paste their profile here. You can add your own background separately after this step.
+          </p>
           <label>
-            Name (optional)
+            Their name (optional)
             <input
               value={pasteName}
               maxLength={120}
@@ -573,7 +588,7 @@ export default function App() {
             />
           </label>
           <label>
-            Profile text
+            Their profile text
             <textarea
               value={pasteText}
               maxLength={18000}
@@ -606,7 +621,7 @@ export default function App() {
               <span>
                 {snapshot.canonicalDisplayUrl
                   ? new URL(snapshot.canonicalDisplayUrl).hostname
-                  : 'Text provided by you'}
+                  : 'Their profile · pasted by you'}
               </span>
             </div>
             <button className="icon-button" aria-label="Clear session" onClick={() => clear()}>
@@ -636,14 +651,18 @@ export default function App() {
             <section className="review">
               <div className="section-heading">
                 <div>
-                  <span className="eyebrow">Start with what’s there</span>
+                  <span className="eyebrow">
+                    About {snapshot.profile.displayName ?? 'the person you’re viewing'}
+                  </span>
                   <h1>Review the details.</h1>
                 </div>
                 <Eye size={20} />
               </div>
               <p className="hint">
-                {snapshot.profile.evidence.length} snippets · Only retained text below is sent. Edit
-                or remove anything you don’t want to use.
+                {snapshot.profile.evidence.length} details about the profile owner.{' '}
+                {snapshot.adapterId === 'instagram-best-effort' &&
+                  'Photo observations are included automatically. '}
+                Edit or remove anything you don’t want to use.
               </p>
               {snapshot.captureWarnings?.map((warning) => (
                 <p className="notice" key={warning}>
@@ -655,36 +674,66 @@ export default function App() {
                   Some content was shortened to fit. Review the retained snippets.
                 </p>
               )}
-              <details className="evidence-review" open={snapshot.profile.evidence.length < 3}>
-                <summary>
-                  Profile evidence <span>{snapshot.profile.evidence.length}</span>
-                </summary>
-                {snapshot.profile.evidence.map((e) => (
-                  <div className="evidence-item" key={e.id}>
-                    <div>
-                      <small>{e.sectionLabel}</small>
-                      <button
-                        className="icon-button"
-                        aria-label={`Remove ${e.id}`}
-                        disabled={busy}
-                        onClick={() => editEvidence(e.id, null)}
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                    <textarea
-                      aria-label={`Evidence ${e.id}`}
-                      maxLength={600}
-                      value={e.text}
-                      disabled={busy}
-                      onChange={(event) => editEvidence(e.id, event.target.value)}
-                      rows={3}
-                    />
-                  </div>
-                ))}
-              </details>
+              {[false, true].map((visual) => {
+                const evidence = snapshot.profile.evidence.filter(
+                  (e) => (e.sourceKind === 'visual') === visual,
+                );
+                if (visual && !evidence.length) return null;
+                return (
+                  <details
+                    key={String(visual)}
+                    className="evidence-review"
+                    open={!visual && evidence.length < 3}
+                  >
+                    <summary>
+                      {visual ? 'Their photo evidence' : 'Their profile text'}{' '}
+                      <span>{evidence.length}</span>
+                    </summary>
+                    {visual && (
+                      <p className="hint">
+                        Added automatically from their photos. These are visual observations, not
+                        statements made by the profile owner.
+                      </p>
+                    )}
+                    {evidence.map((e) => (
+                      <div className="evidence-item" key={e.id}>
+                        <div>
+                          <small>
+                            {e.attribution === 'user_supplied'
+                              ? 'Their profile · provided or edited by you'
+                              : e.sectionLabel}
+                          </small>
+                          <button
+                            className="icon-button"
+                            aria-label={`Remove ${e.id}`}
+                            disabled={busy}
+                            onClick={() => editEvidence(e.id, null)}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                        <textarea
+                          aria-label={`Evidence ${e.id}`}
+                          maxLength={600}
+                          value={e.text}
+                          disabled={busy}
+                          onChange={(event) => editEvidence(e.id, event.target.value)}
+                          rows={3}
+                        />
+                      </div>
+                    ))}
+                  </details>
+                );
+              })}
+              <div className="input-owner-heading">
+                <h2>About you</h2>
+                <p className="hint">
+                  Your background helps find common ground. These details describe you, the person
+                  reaching out.
+                </p>
+              </div>
               <label className="context-label">
-                A little about you <span>optional</span>
+                Your interests and background <span>optional</span>
                 <textarea
                   value={contextText}
                   disabled={busy}
@@ -712,6 +761,12 @@ export default function App() {
                     : 'Add your CV in settings to personalise ideas and drafts.'}
                 </p>
               )}
+              <div className="input-owner-heading">
+                <h2>Your preferences for this conversation</h2>
+                <p className="hint">
+                  Choose how you’d like to reach out and what you’d like to do.
+                </p>
+              </div>
               <mode.InputFields
                 value={config}
                 onChange={(value) => {
@@ -728,7 +783,7 @@ export default function App() {
                 <div className="loading-state" role="status">
                   <LoaderCircle className="spin" size={24} />
                   <h3>Finding a thoughtful connection…</h3>
-                  <p>Creating suggestions from your reviewed details.</p>
+                  <p>Connecting their profile evidence with your background and preferences.</p>
                   <button
                     className="text-button"
                     onClick={() => {
@@ -753,8 +808,8 @@ export default function App() {
                     <Sparkles size={17} /> Generate ideas <ArrowRight size={17} />
                   </button>
                   <p className="privacy-note">
-                    Sends reviewed text to your local backend and OpenAI. Suggestions are
-                    possibilities, not personal assessments.
+                    Sends their included evidence and your background to your local backend and
+                    OpenAI. Suggestions are possibilities, not personal assessments.
                   </p>
                 </>
               )}

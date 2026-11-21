@@ -4,6 +4,7 @@ import {
   requestSchema,
   detectEligibility,
   redactText,
+  profileSchema,
   type OutreachResult,
 } from '../packages/contracts/src';
 import { serverModes, validateOutcome } from '../apps/api/src/modes';
@@ -30,6 +31,31 @@ describe('contracts and evidence', () => {
     const input = request();
     input.profile.evidence.push(input.profile.evidence[0]);
     expect(requestSchema.safeParse(input).success).toBe(false);
+  });
+  it('allows all 150 photo observations alongside 120 profile snippets, without expanding the profile-text limit', () => {
+    const p = manualProfile('Their profile text.');
+    const text = Array.from({ length: 120 }, (_, i) => ({
+      ...p.evidence[0],
+      id: `e${i}`,
+      text: 'x'.repeat(500),
+    }));
+    const photos = Array.from({ length: 150 }, (_, i) => ({
+      id: `v${i}`,
+      text: 'x'.repeat(600),
+      sourceKind: 'visual' as const,
+      attribution: 'visual_observation' as const,
+      sourceImageId: crypto.randomUUID(),
+      observationKind: 'scene' as const,
+      sectionLabel: 'Photo observation',
+    }));
+    expect(profileSchema.safeParse({ ...p, evidence: [...text, ...photos] }).success).toBe(true);
+    expect(
+      profileSchema.safeParse({ ...p, evidence: [...text, { ...text[0], id: 'extra' }] }).success,
+    ).toBe(false);
+    expect(
+      profileSchema.safeParse({ ...p, evidence: [...photos, { ...photos[0], id: 'extra' }] })
+        .success,
+    ).toBe(false);
   });
   it.each(['I am 17. I like art.', "I'm 16 and love books", 'A 15-year-old artist'])(
     'detects obvious underage signals: %s',

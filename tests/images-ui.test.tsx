@@ -105,7 +105,7 @@ describe('image review', () => {
       '2 × Duplicate photo.',
     );
   });
-  it('only analyses on click and requires explicit observation acceptance with provenance', async () => {
+  it('only analyses on click, then automatically includes observations with provenance in a collapsed group', async () => {
     const id = crypto.randomUUID();
     vi.mocked(analyseProfileImages).mockImplementation(async (_s, _t, _signal, batch) => {
       batch(
@@ -145,23 +145,30 @@ describe('image review', () => {
     );
     expect(analyseProfileImages).not.toHaveBeenCalled();
     fireEvent.click(screen.getByText('Analyse profile images'));
-    await screen.findByText('Accept observation');
-    expect(accept).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByText('Accept observation'));
+    const group = (await screen.findByText(/Photo analyses/)).closest('details')!;
+    expect(group.open).toBe(false);
+    expect(screen.queryByText('Accept observation')).toBeNull();
     expect(accept).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sourceImageId: id,
-        attribution: 'visual_observation',
-        sourceKind: 'visual',
-        observationKind: 'scene',
-      }),
+      [
+        expect.objectContaining({
+          sourceImageId: id,
+          attribution: 'visual_observation',
+          sourceKind: 'visual',
+          observationKind: 'scene',
+          text: 'A bicycle is visible. (Uncertainty: Ownership is unknown.)',
+        }),
+      ],
+      snapshot.profile.snapshotId,
     );
     expect(SCHEMA_VERSION).toBe('2');
   });
   it('aborts on unmount and ignores late batches', async () => {
     let signal: AbortSignal | undefined;
-    vi.mocked(analyseProfileImages).mockImplementation(async (_s, _t, inputSignal) => {
+    let lateBatch: Parameters<typeof analyseProfileImages>[3] | undefined;
+    const accept = vi.fn();
+    vi.mocked(analyseProfileImages).mockImplementation(async (_s, _t, inputSignal, batch) => {
       signal = inputSignal;
+      lateBatch = batch;
       return new Promise(() => undefined);
     });
     const { unmount } = render(
@@ -170,7 +177,7 @@ describe('image review', () => {
         token="token"
         disabled={false}
         onBusy={() => undefined}
-        onAccept={() => undefined}
+        onAccept={accept}
         onRemove={() => undefined}
       />,
     );
@@ -182,6 +189,8 @@ describe('image review', () => {
     fireEvent.click(screen.getByText('Analyse profile images'));
     await screen.findByText('Stop photo analysis');
     unmount();
+    lateBatch?.([{ id: crypto.randomUUID(), thumbnail: '', observations: [] }], 1);
+    expect(accept).not.toHaveBeenCalled();
     expect(signal?.aborted).toBe(true);
   });
 });

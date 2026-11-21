@@ -9,6 +9,7 @@ import { analyseProfileImages, type PhotoReview, type PhotoSkipReason } from '..
 import { checkConnection } from '../services/backend';
 
 type Review = Omit<PhotoReview, 'observations'> & {
+  number: number;
   observations: (PhotoReview['observations'][number] & { evidenceId: string })[];
 };
 export function ImageReview({
@@ -25,7 +26,7 @@ export function ImageReview({
   disabled: boolean;
   revision?: number;
   onBusy: (busy: boolean) => void;
-  onAccept: (evidence: Evidence) => void;
+  onAccept: (evidence: Evidence[], snapshotId: string) => void;
   onRemove: (imageId: string) => void;
 }) {
   const [available, setAvailable] = useState(false);
@@ -137,17 +138,33 @@ export function ImageReview({
         controller.signal,
         (batch, count) => {
           if (revision !== generation.current) return;
-          completed.current = count;
-          setPhotos((previous) => [
-            ...previous,
-            ...batch.map((p) => ({
-              ...p,
-              observations: p.observations.map((o) => ({
-                ...o,
-                evidenceId: `v${crypto.randomUUID()}`,
-              })),
+          const reviewed = batch.map((p, index) => ({
+            ...p,
+            number: completed.current + index + 1,
+            observations: p.observations.map((o) => ({
+              ...o,
+              evidenceId: `v${crypto.randomUUID()}`,
             })),
-          ]);
+          }));
+          onAccept(
+            reviewed.flatMap((photo, index) =>
+              photo.observations.map((o) => ({
+                id: o.evidenceId,
+                text: `${o.text}${o.uncertainty ? ` (Uncertainty: ${o.uncertainty})` : ''}`.slice(
+                  0,
+                  600,
+                ),
+                sourceKind: 'visual' as const,
+                attribution: 'visual_observation' as const,
+                sourceImageId: photo.id,
+                observationKind: o.kind,
+                sectionLabel: `Photo ${completed.current + index + 1} · ${o.kind === 'ocr' ? 'OCR' : 'visual observation'}`,
+              })),
+            ),
+            snapshot.profile.snapshotId,
+          );
+          completed.current = count;
+          setPhotos((previous) => [...previous, ...reviewed]);
           setStatus(`${count} / ${maxPhotos} photos analysed. Keep the profile open.`);
         },
         undefined,
@@ -178,8 +195,8 @@ export function ImageReview({
       <h2>Explore their photos</h2>
       <p className="hint">
         Look for small details: a project in progress, an interesting book, or a distinctive
-        activity. Accept the details you want to use, then generate ideas to turn them into natural
-        conversation openings.
+        activity. Completed observations are automatically added to this person's photo evidence.
+        Expand the evidence below to edit or remove details before generating ideas.
       </p>
       <p className="hint">
         Automatically open profile posts and inspect up to {maxPhotos} photos, including carousel
@@ -248,80 +265,61 @@ export function ImageReview({
           </ul>
         </div>
       )}
-      {photos.map((photo, index) => (
-        <details key={photo.id} className="photo-review">
+      {photos.length > 0 && (
+        <details className="photo-results">
           <summary>
-            Photo {index + 1} · {photo.observations.length} observations
+            Photo analyses <span>{photos.length}</span>
           </summary>
-          <img src={photo.thumbnail} alt={`Source photo ${index + 1}`} width={160} />
-          <button
-            className="text-button"
-            disabled={disabled}
-            onClick={() => {
-              stop();
-              onRemove(photo.id);
-              setPhotos((previous) => previous.filter((p) => p.id !== photo.id));
-            }}
-          >
-            Remove photo {index + 1}
-          </button>
-          {!photo.observations.length && (
-            <p className="hint">No supported observations were returned for this photo.</p>
-          )}
-          {photo.observations.map((o) => {
-            const accepted = snapshot.profile.evidence.some((e) => e.id === o.evidenceId);
-            return (
-              <div key={o.evidenceId} className="evidence-item">
-                <label>
-                  {o.kind === 'ocr' ? 'Text visible in photo' : 'Visual observation'}
-                  <textarea
-                    aria-label={`Photo ${index + 1} observation ${o.evidenceId}`}
-                    value={o.text}
-                    maxLength={450}
-                    disabled={running || disabled || accepted}
-                    onChange={(event) =>
-                      setPhotos((previous) =>
-                        previous.map((p) => ({
-                          ...p,
-                          observations: p.observations.map((item) =>
-                            item.evidenceId === o.evidenceId
-                              ? { ...item, text: event.target.value }
-                              : item,
-                          ),
-                        })),
-                      )
-                    }
-                  />
-                </label>
-                {o.uncertainty && <p className="hint">Uncertainty: {o.uncertainty}</p>}
-                <p className="hint">
-                  A photo observation does not establish the owner's interests or identity.
-                </p>
-                <button
-                  className="text-button"
-                  disabled={running || disabled || accepted || !o.text.trim()}
-                  onClick={() =>
-                    onAccept({
-                      id: o.evidenceId,
-                      text: `${o.text}${o.uncertainty ? ` (Uncertainty: ${o.uncertainty})` : ''}`.slice(
-                        0,
-                        600,
-                      ),
-                      sourceKind: 'visual',
-                      attribution: 'visual_observation',
-                      sourceImageId: photo.id,
-                      observationKind: o.kind,
-                      sectionLabel: `Photo ${index + 1} · ${o.kind === 'ocr' ? 'OCR' : 'visual observation'}`,
-                    })
-                  }
-                >
-                  {accepted ? 'Accepted as evidence' : 'Accept observation'}
-                </button>
-              </div>
-            );
-          })}
+          <p className="hint">
+            Observations are included automatically. You can edit or remove them under “Their photo
+            evidence”.
+          </p>
+          {photos.map((photo) => (
+            <details key={photo.id} className="photo-review">
+              <summary>
+                Photo {photo.number} · {photo.observations.length} observations
+              </summary>
+              <img src={photo.thumbnail} alt={`Source photo ${photo.number}`} width={160} />
+              <button
+                className="text-button"
+                disabled={disabled}
+                onClick={() => {
+                  stop();
+                  onRemove(photo.id);
+                  setPhotos((previous) => previous.filter((p) => p.id !== photo.id));
+                }}
+              >
+                Remove photo {photo.number}
+              </button>
+              {!photo.observations.length && (
+                <p className="hint">No supported observations were returned for this photo.</p>
+              )}
+              {photo.observations.map((o) => {
+                const accepted = snapshot.profile.evidence.some((e) => e.id === o.evidenceId);
+                return (
+                  <div key={o.evidenceId} className="evidence-item">
+                    <strong>
+                      {o.kind === 'ocr' ? 'Text visible in photo' : 'Visual observation'}
+                    </strong>
+                    <p>
+                      {snapshot.profile.evidence.find((e) => e.id === o.evidenceId)?.text ?? o.text}
+                    </p>
+                    {!accepted && o.uncertainty && (
+                      <p className="hint">Uncertainty: {o.uncertainty}</p>
+                    )}
+                    <p className="hint">
+                      A photo observation does not establish the owner's interests or identity.
+                    </p>
+                    <p className="hint">
+                      {accepted ? 'Included automatically' : 'Not included in evidence'}
+                    </p>
+                  </div>
+                );
+              })}
+            </details>
+          ))}
         </details>
-      ))}
+      )}
     </section>
   );
 }

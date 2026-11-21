@@ -72,8 +72,8 @@ const test = base.extend<{
 
 async function paste(panel: Page) {
   await panel.getByRole('button', { name: 'Or paste profile text' }).click();
-  await panel.getByLabel('Name (optional)').fill('Alex Morgan');
-  await panel.getByLabel('Profile text', { exact: true }).fill(sampleText);
+  await panel.getByLabel('Their name (optional)').fill('Alex Morgan');
+  await panel.getByLabel('Their profile text', { exact: true }).fill(sampleText);
   await panel.getByRole('button', { name: 'Review this text' }).click();
 }
 test('in-page overlay reads its containing profile tab', async ({
@@ -109,6 +109,10 @@ test('both modes use the backend with current input and render boards, sources a
 }, info) => {
   await panel.screenshot({ path: info.outputPath('welcome.png'), fullPage: true });
   await paste(panel);
+  await expect(panel.getByRole('heading', { name: 'About you', exact: true })).toBeVisible();
+  await panel.getByLabel('Your interests and background').fill('I work on community gardens.');
+  await panel.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  await panel.screenshot({ path: info.outputPath('review.png'), fullPage: true });
   await panel.getByRole('button', { name: 'Generate ideas' }).click();
   await expect(
     panel.getByRole('heading', { name: 'Good work, good conversations.' }),
@@ -117,6 +121,8 @@ test('both modes use the backend with current input and render boards, sources a
   await expect(panel.getByLabel('A first hello')).toBeVisible();
   expect(calls).toHaveLength(1);
   expect(calls[0].profile.evidence[0].text).toContain('accessible developer tools');
+  expect(calls[0].profile.evidence.some((e) => e.text.includes('community gardens'))).toBe(false);
+  expect(calls[0].userContext[0].text).toBe('I work on community gardens.');
   await panel.screenshot({ path: info.outputPath('outreach.png'), fullPage: true });
   await panel.getByRole('button', { name: 'Romantic Pursue', exact: true }).click();
   await panel.getByLabel('I confirm that we are both adults (18+).').check();

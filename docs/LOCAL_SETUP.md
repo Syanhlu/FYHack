@@ -180,7 +180,7 @@ This checks API reachability, the exact extension origin, the local token, and v
 For Outreach:
 
 1. Click **Read this profile** on Alex's sample page.
-2. Expect five retained snippets. Expand **Profile evidence** and review them; you can edit or remove text.
+2. Expect five retained snippets. Expand **Their profile text** and review them; you can edit or remove text.
 3. Optionally enter your own interests or the topic you want to learn about.
 4. Click **Generate ideas**. This is when reviewed text is sent to the local API and OpenAI.
 5. Check for the **Live analysis** label, a six-tile professional moodboard, cited conversation starters, and editable outreach drafts.

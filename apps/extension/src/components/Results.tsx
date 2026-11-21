@@ -59,7 +59,12 @@ export function Sources({
         const e = evidence.find((e) => e.id === id);
         return e ? (
           <blockquote key={id}>
-            <small>{e.attribution === 'user_supplied' ? 'Provided by you' : e.sectionLabel}</small>
+            <small>
+              {e.sourceKind === 'visual' ? 'Their photo · AI observation' : 'Their profile'} ·{' '}
+              {e.attribution === 'user_supplied'
+                ? 'text provided or edited by you'
+                : e.sectionLabel}
+            </small>
             {e.text}
           </blockquote>
         ) : null;

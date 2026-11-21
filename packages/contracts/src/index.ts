@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const SCHEMA_VERSION = '2';
 export const CATALOGUE_VERSION = '1';
 export const SESSION_TTL = 30 * 60 * 1000;
+export const IMAGE_LIMIT = 50;
 const text = (max = 600) => z.string().trim().min(1).max(max);
 const refs = z.array(text(40)).min(1).max(30);
 const userRefs = z.array(text(40)).max(10);
@@ -33,14 +34,21 @@ export const profileSchema = z
   .object({
     snapshotId: z.string().uuid(),
     displayName: text(120).nullable(),
-    evidence: z.array(evidenceSchema).max(120),
+    evidence: z.array(evidenceSchema).max(120 + IMAGE_LIMIT * 3),
     truncated: z.boolean(),
     eligibilitySignals: eligibilitySignalsSchema,
   })
   .strict()
   .superRefine((p, ctx) => {
-    if (p.evidence.reduce((n, e) => n + e.text.length, 0) > 60000)
-      ctx.addIssue({ code: 'custom', message: 'Profile exceeds 60,000 characters.' });
+    const profileText = p.evidence.filter((e) => e.sourceKind !== 'visual');
+    const visual = p.evidence.filter((e) => e.sourceKind === 'visual');
+    if (profileText.length > 120 || profileText.reduce((n, e) => n + e.text.length, 0) > 60000)
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Profile text exceeds 120 snippets or 60,000 characters.',
+      });
+    if (visual.length > IMAGE_LIMIT * 3)
+      ctx.addIssue({ code: 'custom', message: 'Photo evidence exceeds 150 observations.' });
     if (new Set(p.evidence.map((e) => e.id)).size !== p.evidence.length)
       ctx.addIssue({ code: 'custom', message: 'Duplicate evidence IDs.' });
   });
@@ -298,7 +306,6 @@ export function manualProfile(raw: string, name: string | null = null): Profile 
   };
 }
 
-export const IMAGE_LIMIT = 50;
 export const IMAGE_BATCH_SIZE = 3;
 export const IMAGE_BATCH_INTERVAL_MS = 7000;
 export const imageInputSchema = z
