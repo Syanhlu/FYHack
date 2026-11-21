@@ -38,12 +38,12 @@ export const userContextSchema = z
     z
       .object({
         id: text(40),
-        kind: z.enum(['role', 'project', 'interest', 'goal', 'preference']),
+        kind: z.enum(['role', 'project', 'interest', 'goal', 'preference', 'cv']),
         text: text(),
       })
       .strict(),
   )
-  .max(10);
+  .max(15);
 export const citedSchema = z.object({ text: text(900), evidenceIds: refs }).strict();
 export const draftSchema = z
   .object({
@@ -175,9 +175,9 @@ export const requestSchema = z
       ctx.addIssue({ code: 'custom', message: 'Duplicate context IDs.' });
     if (
       r.userContext.reduce((n, u) => n + u.text.length, 0) + JSON.stringify(r.modeConfig).length >
-      3000
+      10000
     )
-      ctx.addIssue({ code: 'custom', message: 'Context exceeds 3,000 characters.' });
+      ctx.addIssue({ code: 'custom', message: 'Context exceeds 10,000 characters.' });
   });
 export function wireSchema<T extends z.ZodType>(result: T) {
   return z

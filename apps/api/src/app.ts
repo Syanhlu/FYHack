@@ -175,7 +175,11 @@ export function buildApp(options: AppOptions) {
       let result: Outcome;
       try {
         result = validateOutcome(mode, raw, input);
-      } catch {
+      } catch (error) {
+        // Local diagnostics only: names the failed check, never the profile text.
+        console.warn(
+          `[${input.mode}] model output rejected: ${error instanceof Error ? error.message.slice(0, 500) : 'unknown'}`,
+        );
         throw new ProviderFailure(
           'MODEL_OUTPUT_INVALID',
           502,

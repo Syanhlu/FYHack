@@ -56,6 +56,26 @@ describe('contracts and evidence', () => {
     result.summary.evidenceIds = ['e1'];
     result.moodboard.tiles[4].quoteText = 'A quote they never wrote.';
     expect(() => validateOutcome(serverModes.outreach, raw, request())).toThrow(/quote/);
+    const curly = request();
+    curly.profile.evidence[0].text = 'I studied at King’s College — London.';
+    result.moodboard.tiles[4].quoteText = "King's College - London";
+    expect(validateOutcome(serverModes.outreach, raw, curly).status).toBe('ready');
+  });
+  it('refiles CV IDs cited as profile evidence and never shows a CV quote as theirs', () => {
+    const input = request();
+    input.userContext = [{ id: 'c1', kind: 'cv', text: 'I founded the robotics club at school.' }];
+    const raw = output('outreach');
+    const result = raw.result as OutreachResult;
+    result.drafts[0].evidenceIds = ['e1', 'c1'];
+    result.moodboard.tiles[4].evidenceIds = ['e1', 'c1'];
+    result.moodboard.tiles[4].quoteText = 'I founded the robotics club';
+    const checked = validateOutcome(serverModes.outreach, raw, input).result as OutreachResult;
+    expect(checked.drafts[0].evidenceIds).toEqual(['e1']);
+    expect(checked.drafts[0].userContextIds).toContain('c1');
+    expect(checked.moodboard.tiles[4].quoteText).toBeNull();
+    const only = output('outreach');
+    (only.result as OutreachResult).summary.evidenceIds = ['c1'];
+    expect(() => validateOutcome(serverModes.outreach, only, input)).toThrow();
   });
   it('rejects fabricated common ground and unsafe asset IDs', () => {
     const raw = output('outreach');
