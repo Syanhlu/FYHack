@@ -67,7 +67,7 @@ If GitHub asks you to authenticate, use an account with access to the repository
 FYHack/apps/extension/.output/chrome-mv3
 ```
 
-It must contain `manifest.json`, `sidepanel.html`, `background.js` and the built assets. The dot-prefixed `.output` directory may be hidden in file pickers. Copy the full directory path or show hidden files if needed. On macOS, use Command+Shift+G in the folder picker to enter the full path.
+It must contain `manifest.json`, `panel.html`, `background.js` and the built assets. The dot-prefixed `.output` directory may be hidden in file pickers. Copy the full directory path or show hidden files if needed. On macOS, use Command+Shift+G in the folder picker to enter the full path.
 
 Dependencies, generated builds, private `.env` files and test output are intentionally excluded from Git. A fresh clone needs the install and build steps; copying only the source extension directory into Chrome will not work.
 
@@ -166,7 +166,7 @@ Use **Ctrl+C** in the server terminal to stop both services. Restart `pnpm demo`
 
 ## 6. Connect the extension
 
-1. With the sample profile active, click the **Profile Lens toolbar icon** to open the actual side panel and grant temporary access to that tab.
+1. With the sample profile active, click the **Profile Lens toolbar icon** to open Profile Lens as a movable overlay on the page and grant temporary access to that tab. Click the icon again, or the ✕, to close it.
 2. Open **Connection settings** using the settings icon in the panel header.
 3. Copy only the `BACKEND_ACCESS_TOKEN` value from `.env` into **Backend token**. Do not paste the `BACKEND_ACCESS_TOKEN=` prefix or the OpenAI key.
 4. Click **Check & save**.

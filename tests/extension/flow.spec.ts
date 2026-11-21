@@ -49,7 +49,7 @@ const test = base.extend<{
       chrome.storage.session.set({ backendToken: 'integration-test-token-only' }),
     );
     const page = await context.newPage();
-    await page.goto(`chrome-extension://${extensionId}/sidepanel.html`);
+    await page.goto(`chrome-extension://${extensionId}/panel.html`);
     await use(page);
   },
 });

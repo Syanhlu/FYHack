@@ -1,7 +1,20 @@
 import { profileSchema, type LocalSnapshot } from '@profile-lens/contracts';
 
+/** As an in-page overlay the panel reads the tab it is embedded in. As a fallback popup
+ * window it reads the active tab of the browser window the toolbar icon was last clicked in. */
+async function targetTab(): Promise<chrome.tabs.Tab | undefined> {
+  if (window.top !== window) return chrome.tabs.getCurrent();
+  const { targetWindowId } = await chrome.storage.session.get('targetWindowId');
+  if (typeof targetWindowId === 'number') {
+    const tabs = await chrome.tabs
+      .query({ active: true, windowId: targetWindowId })
+      .catch(() => []);
+    if (tabs[0]) return tabs[0];
+  }
+  return (await chrome.tabs.query({ active: true, windowType: 'normal' }))[0];
+}
 export async function capture(): Promise<LocalSnapshot> {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tab = await targetTab();
   if (!tab?.id) throw new Error('Open a profile page and click the extension toolbar icon.');
   let results;
   try {
@@ -28,7 +41,7 @@ export async function capture(): Promise<LocalSnapshot> {
 export async function isCurrent(snapshot: LocalSnapshot): Promise<boolean> {
   if (snapshot.tabId === null) return true;
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const tab = await targetTab();
     if (tab?.id !== snapshot.tabId) return false;
     const reply = await chrome.tabs.sendMessage(snapshot.tabId, {
       type: 'PROFILE_LENS_IDENTITY',

@@ -20,9 +20,9 @@ If live extraction fails on a third-party site, use pasted visible text and cont
 
 ## Native Chrome checks
 
-These are not covered merely by opening `sidepanel.html` in Playwright:
+These are not covered merely by opening `panel.html` in Playwright:
 
-- Verified during setup: toolbar action opens the actual Chrome side panel and grants `activeTab` for the selected page; the fictional Alex profile was extracted and generated live.
+- Verified during setup: toolbar action opened the earlier side panel (since replaced by an in-page overlay, not yet re-verified by hand) and granted `activeTab` for the selected page; the fictional Alex profile was extracted and generated live.
 - On a different tab/domain, the panel explains when toolbar invocation is needed again.
 - Reading a restricted `chrome://` page fails cleanly and offers paste input.
 - Capture and review never trigger an AI request; Generate does.
