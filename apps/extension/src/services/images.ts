@@ -6,6 +6,7 @@ import {
   type LocalSnapshot,
   type Evidence,
   type ImageObservation,
+  type PhotoSubject,
 } from '@profile-lens/contracts';
 import type { PhotoCandidate, PhotoScan } from '../extraction/images';
 import { isCurrent } from './browser';
@@ -16,6 +17,7 @@ export type PhotoReview = {
   id: string;
   thumbnail: string;
   observations: ImageObservation[];
+  subject?: PhotoSubject;
 };
 export type PhotoSkipReason = { reason: string; count: number };
 const scaled = (source: HTMLCanvasElement, longest: number, quality: number) => {
@@ -345,6 +347,7 @@ export async function analyseProfileImages(
         id: p.id,
         thumbnail: p.thumbnail,
         observations: response.observations.filter((o) => o.imageId === p.id),
+        subject: response.subjects.find((s) => s.imageId === p.id)?.subject,
       })),
       count,
     );

@@ -158,6 +158,7 @@ export function ImageReview({
                 attribution: 'visual_observation' as const,
                 sourceImageId: photo.id,
                 observationKind: o.kind,
+                ...(photo.subject ? { photoKind: photo.subject } : {}),
                 sectionLabel: `Photo ${completed.current + index + 1} · ${o.kind === 'ocr' ? 'OCR' : 'visual observation'}`,
               })),
             ),

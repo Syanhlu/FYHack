@@ -4,6 +4,7 @@ import {
   wireSchema,
   type AnalysisRequest,
   type Outcome,
+  type PhotoSubject,
   type RomanticResult,
 } from '@profile-lens/contracts';
 import {
@@ -29,16 +30,39 @@ export interface ServerMode {
   /** Adjusts a schema-valid result before its references are checked. */
   prepare?: (result: unknown, input: AnalysisRequest) => void;
   /** Extra data for the model, merged into the user message. */
-  promptData?: (input: AnalysisRequest) => Record<string, unknown>;
+  promptData?: (input: AnalysisRequest, short: Map<string, string>) => Record<string, unknown>;
 }
 /** Analysed photos by ID, each with the evidence that describes it. */
 export function photosOf(input: AnalysisRequest) {
-  const photos = new Map<string, string[]>();
-  for (const e of input.profile.evidence)
-    if (e.sourceImageId)
-      photos.set(e.sourceImageId, [...(photos.get(e.sourceImageId) ?? []), e.id]);
+  const photos = new Map<string, { evidenceIds: string[]; kind?: PhotoSubject }>();
+  for (const e of input.profile.evidence) {
+    if (!e.sourceImageId) continue;
+    const photo = photos.get(e.sourceImageId) ?? { evidenceIds: [] };
+    photo.evidenceIds.push(e.id);
+    photo.kind ??= e.photoKind;
+    photos.set(e.sourceImageId, photo);
+  }
   return photos;
 }
+// How well each kind of photo suits a slot: lower is better, unlabelled photos sit between.
+const rank = (order: (PhotoSubject | undefined)[][]) => (kind?: PhotoSubject) => {
+  const index = order.findIndex((group) => group.includes(kind));
+  return index < 0 ? order.length : index;
+};
+const portraitRank = rank([['person'], ['group'], [undefined]]);
+const hobbyRank = rank([
+  ['activity'],
+  ['animal', 'food', 'object', 'place'],
+  [undefined],
+  ['group'],
+]);
+const hobbyLabels: Partial<Record<PhotoSubject, string>> = {
+  activity: 'out doing things',
+  animal: 'furry friends',
+  food: 'good food',
+  place: 'out and about',
+  object: 'little things',
+};
 const MIN_BOARD_PHOTOS = 3; // two portraits and at least one hobby photo
 const costRank = { free: 0, low: 1, moderate: 2 };
 const blocked = (reason: string): Outcome => ({
@@ -112,24 +136,28 @@ export const serverModes: Record<string, ServerMode> = {
       For warm tone, keep every date invitation and draft to one short text: 8–20 words, at most 140 characters. Use natural contractions, a specific plan and an easy opt-in such as "you down?" or "if you're up for it". Example style only: "coffee + a bookshop browse? would be cute if you're down". Adapt the plan to the evidence; don't copy the example by default. Lowercase is fine; use at most one optional emoji. Avoid forced slang, formal greetings, elaborate compliments, explanations of their profile, or a sign-off. Don't imply mutual attraction or familiarity.
       Honour the user's budget and setting preference. Cost order is free < low < moderate: every date's costBand, including its alternative, must be at or below the budget. Provide 2 short invitation drafts, each under 320 characters.
       Pick exactly one catalogue song as the soundtrack, never as their favourite music.
-      SCRAPBOOK: also build a scrapbook board from their own photos. photos lists every analysed photo as an imageId with the evidence IDs that describe it; use only those imageIds, each at most once across the whole board, and cite at least one of that photo's own evidence IDs on it.
+      SCRAPBOOK: also build a scrapbook board from their own photos. photos lists every analysed photo with a short imageId, shows (what the photo mainly shows, labelled by a model that looked at it: person, group, activity, place, food, animal, object, text, other or unknown) and the evidence IDs that describe it. Use only those imageIds, copied exactly, each at most once across the whole board, and cite at least one of that photo's own evidence IDs on it.
       If photos has fewer than ${MIN_BOARD_PHOTOS} entries, set scrapbook to null and still complete the rest of the result. With ${MIN_BOARD_PHOTOS} or more photos, always build the board.
-      Pick the boardTheme, paletteId and 6–10 stickerIds from catalogues.scrapbook that fit this person's vibe and stated interests.
+      Pick the boardTheme, paletteId and 6–10 stickerIds from scrapbookCatalogue that fit this person's vibe and stated interests.
       name: their first name or display name as given in the profile text (max 24 characters); use the handle if no name is given. Never guess a name.
       summary: a warm, kind 1–2 sentence note (35 words at most) about what they share and enjoy. Never comment on looks or body, and never expose contact details, addresses or routines.
-      portraits: exactly 2 photos. Prefer ones whose evidence says a person is the clear subject, with a visible face and good light; if none say so, use the two photos that most plausibly show a person or feel most personal. This is a layout choice, not an identification.
-      hobbies: 1–2 photos of an activity or interest with a playful label of at most 6 words, such as "weekend hikes".
+      portraits: exactly 2 photos whose shows is person; use group, then any other photo, only when there are not two. This is a layout choice, not an identification.
+      hobbies: 1–2 photos whose shows is activity, animal, food, object or place, each with a playful label of at most 6 words drawn from that photo's evidence, such as "weekend hikes". Never use a person photo here if another kind is available.
       travel: 0–2 photos with place as "City, Country", only when the cited evidence itself names that city. No named place in the evidence means no travel item; never guess a location from scenery.
       quote: a short exact quote from their own profile text with quoteText, or null. Never quote photo text as theirs.
       Leave out any section the evidence cannot support instead of inventing content.
       Do not infer attraction, sexuality, relationship status, hidden personality traits, or exact routines/whereabouts.`,
-    promptData: (input) => ({
-      photos: [...photosOf(input)].map(([imageId, evidenceIds]) => ({ imageId, evidenceIds })),
+    promptData: (input, short) => ({
+      photos: [...photosOf(input).values()].map((photo, index) => ({
+        imageId: `photo${index + 1}`,
+        shows: photo.kind ?? 'unknown',
+        evidenceIds: photo.evidenceIds.map((id) => short.get(id) ?? id),
+      })),
       scrapbookCatalogue,
     }),
     // Repairs before any check runs. One bad piece is left out instead of failing the whole
-    // result: a date outside the user's limits, a reused or unknown photo, a place the
-    // evidence does not name. A board without its required pieces becomes no board.
+    // result. The board's photos are settled here, not trusted from the model: it only ever
+    // read descriptions, while each photo's kind comes from the model that looked at it.
     prepare: (result, input) => {
       const r = result as RomanticResult;
       const config = modeSchemas.romantic.config.parse(input.modeConfig);
@@ -141,50 +169,114 @@ export const serverModes: Record<string, ServerMode> = {
             d.setting === config.settingPreference),
       );
       if (fits.length) r.dateIdeas = fits;
-      const board = r.scrapbook;
       const photos = photosOf(input);
-      // Local diagnostics only: counts, never profile content.
-      const note = (why: string) =>
-        console.warn(`[romantic] no scrapbook: ${why} (${photos.size} analysed photos)`);
-      if (!board)
-        return note(photos.size < MIN_BOARD_PHOTOS ? 'too few photos' : 'model returned none');
-      const text = new Map(input.profile.evidence.map((e) => [e.id, loose(e.text).toLowerCase()]));
+      if (photos.size < MIN_BOARD_PHOTOS) {
+        r.scrapbook = null;
+        return;
+      }
+      const ids = [...photos.keys()];
+      const kind = (id: string) => photos.get(id)!.kind;
+      const own = (id: string) => photos.get(id)!.evidenceIds;
+      // The model saw "photo3"; anything else it returns is not a photo we hold.
+      const real = (id: string) =>
+        ids[Number(/^photo(\d+)$/.exec(id)?.[1]) - 1] ?? (photos.has(id) ? id : undefined);
+      // With enough photos there is always a board, even if the model declined to build one.
+      const board = (r.scrapbook ??= {
+        boardTheme: 'soft-pastel',
+        name: '',
+        summary: {
+          text:
+            r.summary.text.match(/^.{1,248}[.!?](?=\s|$)/s)?.[0] ??
+            `${r.summary.text.slice(0, 249)}…`,
+          evidenceIds: r.summary.evidenceIds,
+        },
+        paletteId: 'blush',
+        portraits: [],
+        travel: [],
+        hobbies: [],
+        quote: null,
+        stickerIds: [],
+      });
       const seen = new Set<string>();
-      const usable = <T extends { imageId: string; evidenceIds: string[] }>(items: T[]) =>
-        items.filter((item) => {
-          const own = photos.get(item.imageId);
-          if (!own || seen.has(item.imageId)) return false;
-          seen.add(item.imageId);
+      const picked = <T extends { imageId: string; evidenceIds: string[] }>(items: T[]) =>
+        items.flatMap((item) => {
+          const id = real(item.imageId);
+          if (!id || seen.has(id)) return [];
+          seen.add(id);
           // A photo's own observations are its evidence by definition.
-          if (!item.evidenceIds.some((id) => own.includes(id)))
-            item.evidenceIds = [own[0]!, ...item.evidenceIds].slice(0, 30);
-          return true;
+          if (!item.evidenceIds.some((e) => own(id).includes(e)))
+            item.evidenceIds = [own(id)[0]!, ...item.evidenceIds].slice(0, 30);
+          return [{ ...item, imageId: id }];
         });
-      board.portraits = usable(board.portraits);
-      board.hobbies = usable(board.hobbies);
+      const text = new Map(input.profile.evidence.map((e) => [e.id, loose(e.text).toLowerCase()]));
+
+      // Portraits: the two photos that best show a person. The model's picks win ties.
+      const chosen = picked(board.portraits);
+      seen.clear();
+      const best = [...new Set([...chosen.map((p) => p.imageId), ...ids])]
+        .sort((a, b) => portraitRank(kind(a)) - portraitRank(kind(b)))
+        .slice(0, 2);
+      board.portraits = best.map(
+        (id) =>
+          chosen.find((p) => p.imageId === id) ?? {
+            imageId: id,
+            caption: null,
+            evidenceIds: own(id).slice(0, 3),
+          },
+      );
+      best.forEach((id) => seen.add(id));
+
+      // Hobbies: the model's picks that are left, or the best remaining photo.
+      board.hobbies = picked(board.hobbies).filter(
+        (p, _i, all) =>
+          kind(p.imageId) !== 'person' || all.every((o) => kind(o.imageId) === 'person'),
+      );
+      if (!board.hobbies.length) {
+        const id = ids
+          .filter((candidate) => !best.includes(candidate))
+          .sort((a, b) => hobbyRank(kind(a)) - hobbyRank(kind(b)))[0]!;
+        board.hobbies = [
+          {
+            imageId: id,
+            label: hobbyLabels[kind(id)!] ?? 'a favourite moment',
+            evidenceIds: own(id).slice(0, 3),
+          },
+        ];
+      }
+      seen.clear();
+      [...best, ...board.hobbies.map((p) => p.imageId)].forEach((id) => seen.add(id));
+
       // A place is only shown when the evidence cited for it names the city.
-      board.travel = usable(board.travel).filter((trip) => {
+      const named = (trip: { place: string; evidenceIds: string[] }) => {
         const city = loose(trip.place.split(',')[0]!).toLowerCase();
         return city.length >= 3 && trip.evidenceIds.some((id) => text.get(id)?.includes(city));
-      });
+      };
+      // A photo offered as both a hobby and a named trip is the trip, if a hobby remains.
+      for (const trip of board.travel) {
+        const id = real(trip.imageId);
+        if (
+          id &&
+          named(trip) &&
+          board.hobbies.length > 1 &&
+          board.hobbies.some((h) => h.imageId === id)
+        ) {
+          board.hobbies = board.hobbies.filter((h) => h.imageId !== id);
+          seen.delete(id);
+        }
+      }
+      board.travel = picked(board.travel).filter(named);
       board.stickerIds = [
         ...new Set([...board.stickerIds, ...boardThemes[board.boardTheme].stickers, ...stickerIds]),
       ].slice(0, Math.max(6, new Set(board.stickerIds).size));
       // Never show an invented name: fall back to the name the profile was read under.
-      const known = [...text]
-        .filter(([id]) => !input.profile.evidence.find((e) => e.id === id)?.sourceImageId)
-        .map(([, value]) => value)
+      const known = input.profile.evidence
+        .filter((e) => !e.sourceImageId)
+        .map((e) => text.get(e.id))
         .concat(loose(input.profile.displayName ?? '').toLowerCase())
         .join(' ');
       const name = loose(board.name).replace(/^@/, '').toLowerCase();
       if (!name || !known.includes(name))
         board.name = (input.profile.displayName ?? 'Someone new').slice(0, 24);
-      if (photos.size < MIN_BOARD_PHOTOS || board.portraits.length !== 2 || !board.hobbies.length) {
-        note(
-          `${board.portraits.length} usable portraits, ${board.hobbies.length} usable hobby photos`,
-        );
-        r.scrapbook = null;
-      }
     },
     validate: (result, input) => {
       const r = modeSchemas.romantic.result.parse(result);
@@ -270,13 +362,43 @@ export function promptFor(mode: ServerMode, input: AnalysisRequest) {
         userContext: input.userContext,
         preferences: input.modeConfig,
         catalogues: promptCatalogue,
-        ...mode.promptData?.(input),
+        ...mode.promptData?.(input, short),
       }),
     },
   ];
 }
 
 export function validateOutcome(mode: ServerMode, raw: unknown, input: AnalysisRequest): Outcome {
+  const userIds = new Set(input.userContext.map((u) => u.id));
+  const full = new Map([...shortIds(input)].map(([id, alias]) => [alias, id]));
+  // Tidied before the schema sees it, because the schema rejects an empty citation list.
+  const draft = (raw as { result?: unknown } | null)?.result;
+  // Short stand-in IDs become real ones before anything reads them.
+  (function restore(value: unknown) {
+    if (!value || typeof value !== 'object') return;
+    const obj = value as Record<string, unknown>;
+    if (Array.isArray(obj.evidenceIds))
+      obj.evidenceIds = obj.evidenceIds.map((id) => full.get(id as string) ?? id);
+    Object.values(obj).forEach(restore);
+  })(draft);
+  // A list item that rests on no profile evidence (none cited, or only the user's own
+  // context) is left out, as the model was told to do. Required single fields still fail.
+  const uncited = (value: unknown): boolean => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+    const obj = value as Record<string, unknown>;
+    return (
+      (Array.isArray(obj.evidenceIds) &&
+        obj.evidenceIds.every((id) => userIds.has(id as string))) ||
+      Object.values(obj).some(uncited)
+    );
+  };
+  (function prune(value: unknown) {
+    if (!value || typeof value !== 'object') return;
+    const obj = value as Record<string, unknown>;
+    for (const [key, item] of Object.entries(obj))
+      if (Array.isArray(item) && key !== 'evidenceIds') obj[key] = item.filter((x) => !uncited(x));
+    Object.values(obj).forEach(prune);
+  })(draft);
   const parsed = wireSchema(mode.resultSchema).parse(raw);
   if (parsed.status !== 'ready') {
     if (parsed.result !== null || !parsed.reason.trim())
@@ -289,8 +411,6 @@ export function validateOutcome(mode: ServerMode, raw: unknown, input: AnalysisR
   const visualIds = new Set(
     input.profile.evidence.filter((e) => e.sourceKind === 'visual').map((e) => e.id),
   );
-  const userIds = new Set(input.userContext.map((u) => u.id));
-  const full = new Map([...shortIds(input)].map(([id, alias]) => [alias, id]));
   const errors: string[] = [];
   function walk(value: unknown) {
     if (typeof value === 'string') {
@@ -304,8 +424,6 @@ export function validateOutcome(mode: ServerMode, raw: unknown, input: AnalysisR
       return;
     }
     const obj = value as Record<string, unknown>;
-    if (Array.isArray(obj.evidenceIds))
-      obj.evidenceIds = obj.evidenceIds.map((id) => full.get(id as string) ?? id);
     // Models sometimes file the user's own context IDs (CV chunks) under evidenceIds.
     // Refile them instead of rejecting; a claim left with no profile evidence still fails.
     if (Array.isArray(obj.evidenceIds)) {

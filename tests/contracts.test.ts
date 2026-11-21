@@ -6,6 +6,7 @@ import {
   redactText,
   profileSchema,
   type OutreachResult,
+  type RomanticResult,
 } from '../packages/contracts/src';
 import { promptFor, serverModes, validateOutcome } from '../apps/api/src/modes';
 import { formatForMode } from '../apps/api/src/providers/live';
@@ -135,6 +136,26 @@ describe('visual evidence provenance', () => {
       observationKind: 'scene',
     };
     expect(requestSchema.safeParse(input).success).toBe(true);
+  });
+  it('leaves out list items that cite no profile evidence, and still fails without any', () => {
+    const input = request('romantic');
+    input.userContext = [{ id: 'u1', kind: 'interest', text: 'I love hiking.' }];
+    const raw = output('romantic');
+    const result = raw.result as RomanticResult;
+    result.interests.push(
+      { text: 'Hiking', evidenceIds: [], kind: 'hobby' },
+      { text: 'Trail running', evidenceIds: ['u1'], kind: 'hobby' },
+    );
+    result.dateIdeas.push({
+      ...structuredClone(result.dateIdeas[0]!),
+      id: 'hike',
+      rationale: { text: 'You both like hills.', evidenceIds: ['u1'] },
+    });
+    const checked = validateOutcome(serverModes.romantic, raw, input).result as RomanticResult;
+    expect(checked.interests).toHaveLength(1);
+    expect(checked.dateIdeas.map((d) => d.id)).toEqual(['coffee']);
+    result.interests = [{ text: 'Hiking', evidenceIds: [], kind: 'hobby' }];
+    expect(() => validateOutcome(serverModes.romantic, raw, input)).toThrow();
   });
   it('shows the model short stand-ins for long evidence IDs and maps them back', () => {
     const input = request();

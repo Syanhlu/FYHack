@@ -47,6 +47,7 @@ describe('analysis providers', () => {
           uncertainty: 'The maker is unknown.',
         },
       ],
+      subjects: [{ imageId: id, subject: 'object' }],
     };
     const fetch = respondWith(result);
     const signal = new AbortController().signal;

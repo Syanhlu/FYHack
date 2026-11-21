@@ -197,7 +197,9 @@ export function registerImageRoutes(
       const result = imageOutcomeSchema.safeParse(raw);
       if (
         !result.success ||
-        result.data.observations.some((o) => !input.images.some((i) => i.id === o.imageId)) ||
+        [...result.data.observations, ...result.data.subjects].some(
+          (o) => !input.images.some((i) => i.id === o.imageId),
+        ) ||
         (result.data.status !== 'ready' &&
           (result.data.observations.length || !result.data.reason.trim()))
       )

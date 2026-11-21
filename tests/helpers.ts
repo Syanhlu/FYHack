@@ -153,6 +153,7 @@ export function scrapbookCase() {
       sectionLabel: `Photo ${i + 1}`,
       sourceImageId: photoIds[i]!,
       observationKind: 'scene' as const,
+      photoKind: (['person', 'person', 'activity', 'place'] as const)[i]!,
     })),
     {
       id: 'v5',

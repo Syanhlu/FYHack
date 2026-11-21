@@ -8,6 +8,19 @@ export const IMAGE_LIMIT = 50;
 const text = (max = 600) => z.string().trim().min(1).max(max);
 const refs = z.array(text(40)).min(1).max(30);
 const userRefs = z.array(text(40)).max(10);
+// What a photo mainly shows, as labelled by the vision model that looked at it.
+export const photoSubjects = [
+  'person',
+  'group',
+  'activity',
+  'place',
+  'food',
+  'animal',
+  'object',
+  'text',
+  'other',
+] as const;
+export type PhotoSubject = (typeof photoSubjects)[number];
 export const evidenceSchema = z
   .object({
     id: text(40),
@@ -17,6 +30,7 @@ export const evidenceSchema = z
     sectionLabel: text(80),
     sourceImageId: z.string().uuid().optional(),
     observationKind: z.enum(['scene', 'ocr']).optional(),
+    photoKind: z.enum(photoSubjects).optional(),
   })
   .strict()
   .superRefine((e, ctx) => {
@@ -27,6 +41,8 @@ export const evidenceSchema = z
       visual !== !!e.observationKind
     )
       ctx.addIssue({ code: 'custom', message: 'Visual evidence requires image provenance.' });
+    if (e.photoKind && !visual)
+      ctx.addIssue({ code: 'custom', message: 'Only photo evidence has a photo kind.' });
   });
 export const eligibilitySignalsSchema = z
   .object({ minorMentioned: z.boolean(), noRomanticContact: z.boolean() })
@@ -99,7 +115,7 @@ export const moodboardSchema = z
   .strict();
 // Romantic Pursue scrapbook: the model returns only catalogue IDs, photo IDs and short text.
 // A photo ID is the sourceImageId of that photo's visual evidence.
-const photoRef = { imageId: z.string().uuid(), evidenceIds: refs };
+const photoRef = { imageId: text(60), evidenceIds: refs };
 export const scrapbookSchema = z
   .object({
     boardTheme: z.enum(boardThemeIds),
@@ -368,8 +384,17 @@ export const imageOutcomeSchema = z
     status: z.enum(['ready', 'insufficient', 'blocked']),
     reason: z.string().max(400),
     observations: z.array(imageObservationSchema).max(9),
+    // One label per photo. Optional on the wire so older backends and fixtures still parse.
+    subjects: z
+      .array(z.object({ imageId: z.string().uuid(), subject: z.enum(photoSubjects) }).strict())
+      .max(IMAGE_BATCH_SIZE)
+      .default([]),
   })
   .strict();
+// The vision model must always fill in subjects (structured output has no optional fields).
+export const imageModelSchema = imageOutcomeSchema.extend({
+  subjects: imageOutcomeSchema.shape.subjects.unwrap(),
+});
 export const imageResponseSchema = imageOutcomeSchema
   .extend({
     runId: z.string().uuid(),

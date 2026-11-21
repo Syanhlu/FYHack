@@ -36,7 +36,12 @@ describe('scrapbook validation', () => {
     const { input } = scrapbookCase();
     const data = JSON.parse(promptFor(mode, input)[1]!.content);
     expect(data.photos).toHaveLength(4);
-    expect(data.photos[3]).toEqual({ imageId: photoIds[3], evidenceIds: ['v4', 'v5'] });
+    expect(data.photos[3]).toEqual({
+      imageId: 'photo4',
+      shows: 'place',
+      evidenceIds: ['v4', 'v5'],
+    });
+    expect(JSON.stringify(data.photos)).not.toContain(photoIds[3]);
     expect(data.scrapbookCatalogue.themes.map((t: { id: string }) => t.id)).toEqual(boardThemeIds);
   });
   it.each([
@@ -51,13 +56,54 @@ describe('scrapbook validation', () => {
     expect(check(edit)).toThrow(),
   );
   const board = (edit: (b: Board) => void) => (check(edit)().result as RomanticResult).scrapbook;
-  it('leaves out a photo the profile does not have, or one used twice', () => {
-    for (const imageId of [crypto.randomUUID(), photoIds[0]!]) {
+  it('accepts the short photo IDs the model is shown and returns real ones', () => {
+    const result = board((b) => {
+      b.portraits[0]!.imageId = 'photo1';
+      b.portraits[1]!.imageId = 'photo2';
+      b.hobbies[0]!.imageId = 'photo3';
+      b.travel[0]!.imageId = 'photo4';
+    })!;
+    expect(result.portraits.map((p) => p.imageId)).toEqual([photoIds[0], photoIds[1]]);
+    expect(result.hobbies[0]!.imageId).toBe(photoIds[2]);
+    expect(result.travel[0]!.imageId).toBe(photoIds[3]);
+  });
+  it('chooses the photos itself when the model picks ones that do not exist or repeat', () => {
+    for (const imageId of ['photo99', crypto.randomUUID(), photoIds[0]!]) {
       expect(board((b) => (b.travel[0]!.imageId = imageId))?.travel).toEqual([]);
-      // Without its only hobby photo, or a second portrait, there is no board to show.
-      expect(board((b) => (b.hobbies[0]!.imageId = imageId))).toBeNull();
+      // The pottery photo is the only one labelled as an activity.
+      const hobbies = board((b) => (b.hobbies[0]!.imageId = imageId))!.hobbies;
+      expect(hobbies).toEqual([
+        { imageId: photoIds[2], label: 'out doing things', evidenceIds: ['v3'] },
+      ]);
     }
-    expect(board((b) => (b.portraits[1]!.imageId = photoIds[0]!))).toBeNull();
+    const portraits = board((b) => (b.portraits[1]!.imageId = photoIds[0]!))!.portraits;
+    expect(portraits.map((p) => p.imageId)).toEqual([photoIds[0], photoIds[1]]);
+  });
+  it('trusts what the photo shows over the model: portraits are the photos of a person', () => {
+    // The model swaps a portrait with the pottery photo.
+    const result = board((b) => {
+      b.portraits[1]!.imageId = photoIds[2]!;
+      b.hobbies[0]!.imageId = photoIds[1]!;
+    })!;
+    expect(result.portraits.map((p) => p.imageId)).toEqual([photoIds[0], photoIds[1]]);
+    expect(result.hobbies.map((p) => p.imageId)).toEqual([photoIds[2]]);
+  });
+  it('keeps a photo offered as both hobby and named trip as the trip', () => {
+    const result = board((b) =>
+      b.hobbies.push({ imageId: photoIds[3]!, label: 'tram rides', evidenceIds: ['v4'] }),
+    )!;
+    expect(result.hobbies.map((p) => p.imageId)).toEqual([photoIds[2]]);
+    expect(result.travel.map((p) => p.place)).toEqual(['Lisbon, Portugal']);
+  });
+  it('builds a board itself when the model returns none despite enough photos', () => {
+    const { input, raw } = scrapbookCase();
+    (raw.result as RomanticResult).scrapbook = null;
+    const made = (validateOutcome(mode, raw, input).result as RomanticResult).scrapbook!;
+    expect(made.portraits.map((p) => p.imageId)).toEqual([photoIds[0], photoIds[1]]);
+    expect(made.hobbies[0]!.imageId).toBe(photoIds[2]);
+    expect(made.name).toBe('Alex');
+    expect(made.stickerIds.length).toBeGreaterThanOrEqual(6);
+    expect(modeSchemas.romantic.result.shape.scrapbook.safeParse(made).success).toBe(true);
   });
   it('leaves out a place its evidence does not name', () => {
     expect(board((b) => (b.travel[0]!.place = 'Paris, France'))?.travel).toEqual([]);
@@ -100,10 +146,6 @@ describe('scrapbook validation', () => {
     );
     const result = validateOutcome(mode, raw, input).result as RomanticResult;
     expect(result.scrapbook).toBeNull();
-    // The model may also decide the photos are not usable.
-    const usable = scrapbookCase();
-    (usable.raw.result as RomanticResult).scrapbook = null;
-    expect(validateOutcome(mode, usable.raw, usable.input).status).toBe('ready');
   });
   it('treats a board in the old tile format as stale', () => {
     const { raw } = scrapbookCase();
