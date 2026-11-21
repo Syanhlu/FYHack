@@ -841,9 +841,13 @@ blockquote small {
 }
 .song-card .song-reason,
 .song-card > .sources,
-.song-card > small {
+.song-card > small,
+.song-card > .text-button {
   grid-column: 1/-1;
   margin: 0;
+}
+.song-card > .text-button {
+  justify-self: start;
 }
 .song-card > small {
   font-size: 9px;

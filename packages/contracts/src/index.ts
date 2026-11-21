@@ -161,7 +161,7 @@ export const modeSchemas = {
     config: z
       .object({
         adultConfirmedBoth: z.boolean(),
-        tone: z.enum(['warm', 'playful']),
+        tone: z.enum(['warm', 'playful', 'heartfelt', 'confident', 'relaxed']),
         budget: z.enum(['free', 'low', 'moderate']),
         settingPreference: z.enum(['indoor', 'outdoor', 'either']),
       })

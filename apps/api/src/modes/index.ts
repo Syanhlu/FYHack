@@ -79,6 +79,8 @@ export const serverModes: Record<string, ServerMode> = {
       Return insufficient if no hobby or preference is supplied. Return blocked for explicit underage or no-contact/no-dating signals,
       including signals not caught by prechecks. Never infer adulthood from a career or photo.
       Aim for 3 different, public, low-pressure first dates. Include duration/cost bands, a practical alternative and an easy-to-decline invitation.
+      Write invitations and drafts in the chosen tone: warm (kind, direct), playful (light, a little teasing), heartfelt (sincere, earnest),
+      confident (bold, clear ask, never pushy) or relaxed (casual, no pressure). Every tone stays respectful and easy to decline.
       Honour the user's budget and setting preference. Cost order is free < low < moderate: every date's costBand, including its alternative, must be at or below the budget. Provide 2 short invitation drafts, each under 320 characters.
       Build a warm Pinterest-style board. Pick exactly one catalogue song as the board's soundtrack, never as their favourite music.
       Do not infer attraction, sexuality, relationship status, personality, or exact routines/whereabouts.`,
@@ -177,13 +179,11 @@ export function validateOutcome(mode: ServerMode, raw: unknown, input: AnalysisR
     const obj = value as Record<string, unknown>;
     // Models sometimes file the user's own context IDs (CV chunks) under evidenceIds.
     // Refile them instead of rejecting; a claim left with no profile evidence still fails.
-    let refiled = false;
     if (Array.isArray(obj.evidenceIds)) {
       const own = obj.evidenceIds.filter(
         (id): id is string => typeof id === 'string' && userIds.has(id) && !evidence.has(id),
       );
       if (own.length) {
-        refiled = true;
         obj.evidenceIds = obj.evidenceIds.filter((id) => !own.includes(id as string));
         if (Array.isArray(obj.userContextIds))
           obj.userContextIds = [...new Set([...obj.userContextIds, ...own])].slice(0, 10);
@@ -209,11 +209,10 @@ export function validateOutcome(mode: ServerMode, raw: unknown, input: AnalysisR
             !visualIds.has(id) &&
             loose(evidence.get(id) ?? '').includes(quote),
         )
-      ) {
-        // A quote lifted from the user's own CV becomes a paraphrase, never their words.
-        if (refiled) obj.quoteText = null;
-        else errors.push('Fabricated quote.');
-      }
+      )
+        // Never show unverified words as theirs: an inexact or invented quote is dropped
+        // and the tile falls back to its caption, instead of failing the whole result.
+        obj.quoteText = null;
     }
     if (obj.kind === 'image' && (typeof obj.assetId !== 'string' || !getAsset(obj.assetId)))
       errors.push('Unknown image.');

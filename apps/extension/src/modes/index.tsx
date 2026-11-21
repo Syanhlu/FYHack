@@ -29,6 +29,7 @@ export interface ClientMode {
     evidence: Evidence[];
     userContext: UserContext;
     beforeCopy: () => Promise<boolean>;
+    config?: Record<string, unknown>;
   }>;
 }
 function OutreachFields({ value, onChange }: ModeFieldsProps) {
@@ -112,6 +113,9 @@ function RomanticFields({ value, onChange }: ModeFieldsProps) {
         >
           <option value="warm">Warm & direct</option>
           <option value="playful">Light & playful</option>
+          <option value="heartfelt">Sincere & heartfelt</option>
+          <option value="confident">Confident & bold</option>
+          <option value="relaxed">Relaxed & easygoing</option>
         </select>
       </label>
     </div>

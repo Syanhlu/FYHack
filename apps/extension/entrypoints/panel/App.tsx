@@ -785,6 +785,7 @@ export default function App() {
                   evidence={snapshot.profile.evidence}
                   userContext={userContext()}
                   beforeCopy={beforeCopy}
+                  config={config}
                 />
               ) : (
                 <section className="empty-result">

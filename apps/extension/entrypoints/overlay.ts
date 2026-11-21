@@ -40,6 +40,7 @@ export default defineUnlistedScript(() => {
 
   const frame = document.createElement('iframe');
   frame.title = 'Profile Lens';
+  frame.allow = 'autoplay'; // romantic results play generated ambient music
   frame.src = chrome.runtime.getURL('/panel.html');
   frame.style.cssText = 'flex:1;width:100%;min-height:0;border:0;background:#faf8f2;';
 

@@ -48,14 +48,15 @@ describe('contracts and evidence', () => {
   it.each(['outreach', 'romantic'])('validates the %s result contract', (mode) =>
     expect(validateOutcome(serverModes[mode], output(mode), request(mode)).status).toBe('ready'),
   );
-  it('rejects fabricated references and exact quotes', () => {
+  it('rejects fabricated references and drops unverified quotes', () => {
     const raw = output('outreach');
     const result = raw.result as OutreachResult;
     result.summary.evidenceIds = ['e99'];
     expect(() => validateOutcome(serverModes.outreach, raw, request())).toThrow(/reference/);
     result.summary.evidenceIds = ['e1'];
     result.moodboard.tiles[4].quoteText = 'A quote they never wrote.';
-    expect(() => validateOutcome(serverModes.outreach, raw, request())).toThrow(/quote/);
+    const dropped = validateOutcome(serverModes.outreach, raw, request()).result as OutreachResult;
+    expect(dropped.moodboard.tiles[4].quoteText).toBeNull();
     const curly = request();
     curly.profile.evidence[0].text = 'I studied at King’s College — London.';
     result.moodboard.tiles[4].quoteText = "King's College - London";
@@ -124,6 +125,8 @@ describe('visual evidence provenance', () => {
     const result = raw.result as OutreachResult;
     result.moodboard.tiles[4].quoteText = 'A bicycle is visible.';
     result.moodboard.tiles[4].evidenceIds = ['e1'];
-    expect(() => validateOutcome(serverModes.outreach, raw, input)).toThrow(/quote/);
+    // Unverifiable quotes are dropped to a caption rather than failing the whole result.
+    const checked = validateOutcome(serverModes.outreach, raw, input).result as OutreachResult;
+    expect(checked.moodboard.tiles[4].quoteText).toBeNull();
   });
 });

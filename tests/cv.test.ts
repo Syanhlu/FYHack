@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { cvContext, readCv } from '../apps/extension/src/services/cv';
 import { readable } from '../apps/extension/src/components/Results';
+import { moodFor } from '../apps/extension/src/services/music';
 import { requestSchema } from '../packages/contracts/src';
 import { request } from './helpers';
 
@@ -35,6 +36,17 @@ describe('CV context', () => {
     expect(saved.text).toContain('[email removed]');
     expect(saved.text).not.toContain('jane@example.com');
     await expect(readCv(new File(['  '], 'empty.txt'))).rejects.toThrow(/No readable text/);
+  });
+});
+describe('ambient music mood', () => {
+  it('takes its character from the tone and nudges tempo by the soundtrack tags', () => {
+    const tones = ['warm', 'playful', 'heartfelt', 'confident', 'relaxed'];
+    expect(new Set(tones.map((tone) => JSON.stringify(moodFor(tone, [])))).size).toBe(5);
+    expect(moodFor('playful', []).bpm).toBeGreaterThan(moodFor('heartfelt', []).bpm);
+    expect(moodFor('warm', ['energetic']).bpm).toBeGreaterThan(moodFor('warm', []).bpm);
+    expect(moodFor('warm', ['quiet']).bpm).toBeLessThan(moodFor('warm', []).bpm);
+    expect(moodFor('unknown', [])).toEqual(moodFor('warm', []));
+    expect(tones.filter((tone) => moodFor(tone, []).pulse)).toEqual(['confident']);
   });
 });
 describe('readable labels', () => {

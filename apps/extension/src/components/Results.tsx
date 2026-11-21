@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { ArrowUpRight, Check, Copy, Music2, Quote, Sparkles } from 'lucide-react';
 import { getAsset, getSong, palettes, songSearchUrl } from '@profile-lens/catalogues';
 import type {
@@ -10,17 +10,34 @@ import type {
   RomanticResult,
   UserContext,
 } from '@profile-lens/contracts';
+import { startMusic } from '../services/music';
 
 // Model labels sometimes arrive as identifiers ("coffee_chat_invitation"); show them as words.
 export const readable = (value: string) => {
   const words = value.replace(/[_-]+/g, ' ').trim();
   return words === value ? value : words.charAt(0).toUpperCase() + words.slice(1);
 };
+// Plays generated ambient music matched to the soundtrack pick's mood, with a pause control.
+function AmbientMusic({ tone, tags }: { tone: string; tags: string[] }) {
+  const [playing, setPlaying] = useState(true);
+  const mood = tags.join(' ');
+  useEffect(() => {
+    if (!playing || typeof AudioContext === 'undefined') return;
+    return startMusic(tone, mood.split(' '));
+  }, [playing, tone, mood]);
+  if (typeof AudioContext === 'undefined') return null;
+  return (
+    <button className="text-button" aria-pressed={playing} onClick={() => setPlaying(!playing)}>
+      {playing ? 'Pause ambient music' : 'Play ambient music'}
+    </button>
+  );
+}
 export interface ResultProps<T> {
   data: T;
   evidence: Evidence[];
   userContext: UserContext;
   beforeCopy: () => Promise<boolean>;
+  config?: Record<string, unknown>;
 }
 export function Sources({
   ids,
@@ -260,6 +277,7 @@ export function RomanticView({
   evidence,
   userContext,
   beforeCopy,
+  config,
 }: ResultProps<RomanticResult>) {
   const song = getSong(data.song.catalogueId);
   const songUrl = songSearchUrl(data.song.catalogueId);
@@ -292,6 +310,11 @@ export function RomanticView({
           <p className="song-reason">{data.song.rationale.text}</p>
           <Sources ids={data.song.rationale.evidenceIds} evidence={evidence} />
           <small>Search link · a creative pick, not their stated music taste</small>
+          <AmbientMusic tone={String(config?.tone ?? 'warm')} tags={[...song.tags]} />
+          <small>
+            Playing original generated music for your chosen tone and this mood, not the song
+            itself.
+          </small>
         </section>
       )}
       <section>
