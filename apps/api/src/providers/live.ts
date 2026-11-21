@@ -2,6 +2,7 @@ import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { wireSchema, type AnalysisRequest, type Outcome } from '@profile-lens/contracts';
 import { promptFor, type ServerMode } from '../modes/index';
+import type { ReasoningEffort } from './settings';
 
 export interface AnalysisProvider {
   generate(mode: ServerMode, request: AnalysisRequest, signal: AbortSignal): Promise<unknown>;
@@ -22,6 +23,7 @@ export function liveProvider(config: {
   model: string;
   timeoutMs: number;
   maxOutputTokens: number;
+  reasoningEffort?: ReasoningEffort;
 }): AnalysisProvider {
   const client = new OpenAI({ apiKey: config.apiKey, maxRetries: 0, timeout: config.timeoutMs });
   return {
@@ -33,6 +35,7 @@ export function liveProvider(config: {
             store: false,
             input: promptFor(mode, request),
             max_output_tokens: config.maxOutputTokens,
+            ...(config.reasoningEffort ? { reasoning: { effort: config.reasoningEffort } } : {}),
             text: { format: formatForMode(mode) },
           },
           { signal },

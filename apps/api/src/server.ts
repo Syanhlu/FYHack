@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { buildApp } from './app';
 import { liveProvider } from './providers/live';
 import { imageProvider } from './providers/images';
+import { analysisSettings } from './providers/settings';
 
 const { OPENAI_API_KEY, OPENAI_MODEL, ALLOWED_EXTENSION_ORIGIN, BACKEND_ACCESS_TOKEN } =
   process.env;
@@ -20,17 +21,8 @@ if (process.env.PROVIDER && process.env.PROVIDER !== 'live')
   throw new Error('Only the live provider is available.');
 if (process.env.API_HOST && process.env.API_HOST !== '127.0.0.1')
   throw new Error('This local backend must bind to 127.0.0.1.');
-const timeoutMs = Number(process.env.ANALYSIS_TIMEOUT_MS ?? 25000);
-const maxOutputTokens = Number(process.env.MAX_OUTPUT_TOKENS ?? 5000);
-if (
-  !Number.isFinite(timeoutMs) ||
-  timeoutMs < 1000 ||
-  timeoutMs > 60000 ||
-  !Number.isFinite(maxOutputTokens) ||
-  maxOutputTokens < 500 ||
-  maxOutputTokens > 10000
-)
-  throw new Error('Invalid analysis limits.');
+const { timeoutMs, maxOutputTokens, imageMaxOutputTokens, reasoningEffort, imageReasoningEffort } =
+  analysisSettings(process.env);
 const token = BACKEND_ACCESS_TOKEN || randomBytes(32).toString('base64url');
 if (token.length < 24) throw new Error('BACKEND_ACCESS_TOKEN must contain at least 24 characters.');
 const app = buildApp({
@@ -42,9 +34,11 @@ const app = buildApp({
             apiKey: OPENAI_API_KEY,
             model: process.env.OPENAI_IMAGE_MODEL || OPENAI_MODEL,
             timeoutMs,
+            maxOutputTokens: imageMaxOutputTokens,
+            reasoningEffort: imageReasoningEffort,
           }),
-          batchBudgetUsd: Number(process.env.IMAGE_BATCH_BUDGET_USD ?? 0.05),
-          runBudgetUsd: Number(process.env.IMAGE_RUN_BUDGET_USD ?? 1),
+          batchBudgetUsd: Number(process.env.IMAGE_BATCH_BUDGET_USD ?? 0.1),
+          runBudgetUsd: Number(process.env.IMAGE_RUN_BUDGET_USD ?? 2),
         }
       : undefined,
   allowedOrigin: ALLOWED_EXTENSION_ORIGIN!,
@@ -54,6 +48,7 @@ const app = buildApp({
     model: OPENAI_MODEL,
     timeoutMs,
     maxOutputTokens,
+    reasoningEffort,
   }),
 });
 await app.listen({ host: '127.0.0.1', port: Number(process.env.API_PORT ?? 8787) });

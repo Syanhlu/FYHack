@@ -337,7 +337,8 @@ export default function App() {
       const output = await analyse(
         input,
         token,
-        AbortSignal.any([controller.signal, AbortSignal.timeout(30000)]),
+        // Allow the server's configurable deadline (up to 60s) plus transport overhead.
+        AbortSignal.any([controller.signal, AbortSignal.timeout(65000)]),
       );
       if (revision !== epoch.current || !(await isCurrent(snapshot))) return;
       if (output.status === 'ready') modeSchemas[modeId].result.parse(output.result);

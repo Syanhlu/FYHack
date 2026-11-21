@@ -26,9 +26,9 @@ The panel captures the active viewport and crops the photo locally. It checks ac
 
 `apps/api/src/images.ts` creates authenticated expiring run IDs and accepts three-photo batches through `/v1/analyse-images`. It decodes and validates actual pixels with Sharp, strips metadata, rejects duplicate IDs/content/batches, and enforces a 50-photo ceiling and 17-attempt ceiling. Image requests have a separate 5 MiB limit. Existing text endpoint limits remain 512 KiB, 120 evidence items and 60,000 characters; the shared contract version is `2`.
 
-`providers/images.ts` sends cropped image bytes to the configured OpenAI image model with low-detail image input and structured outputs. It requests observable scene details and legible text, with uncertainty, and treats image text as untrusted input. The server validates references and redacts contact details from returned text. This text redaction does not remove information from image pixels sent to the provider.
+`providers/images.ts` sends cropped image bytes to the configured OpenAI image model with high-detail image input and structured outputs. It requests observable scene details and legible text, with uncertainty, and treats image text as untrusted input. The server validates references and redacts contact details from returned text. This text redaction does not remove information from image pixels sent to the provider.
 
-One batch runs at a time, paced at least seven seconds apart. Deadlines, cancellation, and no automatic retries limit requests. `IMAGE_BATCH_BUDGET_USD` reserves a configurable estimated amount before every provider attempt, including failed attempts; `IMAGE_RUN_BUDGET_USD` caps those reservations. These are deployment estimates, not provider-enforced dollar limits. Defaults are $0.05 per batch and $1 per run; set them conservatively for the chosen model's current prices.
+One batch runs at a time, paced at least seven seconds apart. Deadlines, cancellation, and no automatic retries limit requests. `IMAGE_BATCH_BUDGET_USD` reserves a configurable estimated amount before every provider attempt, including failed attempts; `IMAGE_RUN_BUDGET_USD` caps those reservations. These are deployment estimates, not provider-enforced dollar limits. Server defaults are $0.10 per batch and $2 per run; set them conservatively for the chosen model's current prices.
 
 ## Lifecycle and privacy
 
@@ -40,7 +40,7 @@ Stop preserves completed observations on the same profile. Changing profiles/mod
 
 - Unit/API/component tests cover 0/1/49/50/over-50-photo runs, batching, duplicates, image validation, deadlines, budgets, expiry, explicit review, visual provenance, cancellation, and stale geometry.
 - Chromium fixtures cover opening posts, stepping through a carousel, scrolling to another post, cropping larger media without comments/page background, restoring the profile, interruption, stale-run isolation, and unrelated navigation. Regression fixtures include article-free dialogs, unchanged profile URLs, and image loading longer than the former three-second deadline.
-- `pnpm eval:images` is an opt-in paid smoke check using a generated pottery illustration. It passed with `gpt-5.4-mini`. No personal photos are used in the smoke check.
+- `pnpm eval:images` is an opt-in paid smoke check using a generated pottery illustration. It passed with `gpt-5.4` and medium reasoning (two observations, about 4.5 seconds). No personal photos are used in the smoke check.
 - Real Instagram layouts, localisation, mixed video/photo carousels, and broader output quality need manual evaluation. Video analysis, stories, hidden media, full-page post layouts, and bypassing access restrictions are outside this implementation.
 
 References: [Chrome capture permissions and limits](https://developer.chrome.com/docs/extensions/reference/api/tabs#method-captureVisibleTab), [OpenAI image inputs](https://developers.openai.com/api/docs/guides/images-vision), [Sharp validation](https://sharp.pixelplumbing.com/api-constructor/).

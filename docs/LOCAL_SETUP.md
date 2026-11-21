@@ -122,12 +122,13 @@ API_PORT=8787
 ALLOWED_EXTENSION_ORIGIN=chrome-extension://YOUR_32_LETTER_EXTENSION_ID
 BACKEND_ACCESS_TOKEN=PASTE_YOUR_GENERATED_LOCAL_TOKEN
 OPENAI_API_KEY=PASTE_YOUR_OPENAI_API_KEY
-OPENAI_MODEL=gpt-5.4-mini
-ANALYSIS_TIMEOUT_MS=25000
-MAX_OUTPUT_TOKENS=5000
+OPENAI_MODEL=gpt-5.4
+OPENAI_REASONING_EFFORT=low
+ANALYSIS_TIMEOUT_MS=60000
+MAX_OUTPUT_TOKENS=8000
 ```
 
-Replace each uppercase placeholder; do not include angle brackets or add a trailing slash to the extension origin. `gpt-5.4-mini` passed both live mode checks during development. You can configure another model supported by your account, but it must support the Responses API and Structured Outputs and pass the live smoke check below.
+Replace each uppercase placeholder; do not include angle brackets or add a trailing slash to the extension origin. The recommended configuration uses `gpt-5.4` with low reasoning for responsive, detail-led text analysis. You can configure another model supported by your account, but it must support the Responses API and Structured Outputs and pass the live smoke check below. Leave `OPENAI_REASONING_EFFORT` blank for a model without configurable reasoning.
 
 | Setting                    | How to choose it                                                                          |
 | -------------------------- | ----------------------------------------------------------------------------------------- |
@@ -264,7 +265,7 @@ The ZIP is written under `apps/extension/.output/`. A recipient must unzip it be
 | “Connection rejected”                                        | Compare the extension ID shown in settings with `ALLOWED_EXTENSION_ORIGIN`; include the scheme and omit a trailing slash, then restart the API.                                                     |
 | Settings connect, but Generate reports provider unavailable  | Connection testing only reaches the local API. Check the OpenAI key, model access, API billing/credits and outbound internet access; use the paid live smoke check to isolate provider issues.      |
 | “The result could not be verified”                           | Validation rejected that model response. Retry deliberately, or review/reduce the input. There is no automatic saved-response fallback.                                                             |
-| Timeout                                                      | Retry with less text. The API accepts `ANALYSIS_TIMEOUT_MS` from 1000 to 60000; restart it after changing this value. The separate live-evaluation script currently uses its own 25-second timeout. |
+| Timeout                                                      | Retry with less text. The API accepts `ANALYSIS_TIMEOUT_MS` from 1000 to 60000; restart it after changing this value. The live-evaluation scripts use the same configured deadline and reasoning settings as the server. |
 | Cannot read a page                                           | Click Profile Lens's toolbar icon on the current tab to grant access, then read again. Chrome internal pages and some site structures cannot be extracted; paste the relevant visible text instead. |
 | Token or results disappear after a reload                    | This is expected: the connection token is session-only and analysis state lives in panel memory. Reconnect and read again.                                                                          |
 | Changes are not visible in Chrome                            | Rebuild, reload the extension from `chrome://extensions`, and refresh the target profile tab.                                                                                                       |

@@ -3,9 +3,11 @@ import { loadEnvFile } from 'node:process';
 import sharp from 'sharp';
 import { SCHEMA_VERSION, imageOutcomeSchema } from '../packages/contracts/src';
 import { imageProvider } from '../apps/api/src/providers/images';
+import { analysisSettings } from '../apps/api/src/providers/settings';
 
 // Opt-in paid smoke check. Sends only this generated fixture, never profile images.
 if (existsSync('.env')) loadEnvFile('.env');
+const { timeoutMs, imageMaxOutputTokens, imageReasoningEffort } = analysisSettings(process.env);
 const apiKey = process.env.OPENAI_API_KEY;
 const model = process.env.OPENAI_IMAGE_MODEL || process.env.OPENAI_MODEL;
 if (!apiKey || !model)
@@ -25,7 +27,13 @@ const imageId = crypto.randomUUID();
 const started = Date.now();
 try {
   const result = imageOutcomeSchema.parse(
-    await imageProvider({ apiKey, model, timeoutMs: 30000 }).generate(
+    await imageProvider({
+      apiKey,
+      model,
+      timeoutMs,
+      maxOutputTokens: imageMaxOutputTokens,
+      reasoningEffort: imageReasoningEffort,
+    }).generate(
       {
         schemaVersion: SCHEMA_VERSION,
         runId: crypto.randomUUID(),
@@ -33,7 +41,7 @@ try {
         snapshotId: crypto.randomUUID(),
         images: [{ id: imageId, dataUrl: `data:image/jpeg;base64,${data.toString('base64')}` }],
       },
-      AbortSignal.timeout(35000),
+      AbortSignal.timeout(timeoutMs),
     ),
   );
   if (
@@ -49,6 +57,11 @@ try {
       observations: result.observations.length,
       durationMs: Date.now() - started,
       imageBytes: data.length,
+      details: result.observations.map(({ kind, text, uncertainty }) => ({
+        kind,
+        text,
+        uncertainty,
+      })),
     }),
   );
 } catch {

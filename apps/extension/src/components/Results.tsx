@@ -205,14 +205,14 @@ export function OutreachView({
   return (
     <div className="results">
       <div className="result-intro">
-        <span className="eyebrow">Profile says</span>
+        <span className="eyebrow">What stands out</span>
         <p>{data.summary.text}</p>
         <Sources ids={data.summary.evidenceIds} evidence={evidence} />
       </div>
       <MoodboardView board={data.moodboard} evidence={evidence} />
       <section>
         <div className="section-heading">
-          <h2>What they care about</h2>
+          <h2>Details worth asking about</h2>
           <span className="count">{data.professionalInterests.length}</span>
         </div>
         <Facts items={data.professionalInterests} evidence={evidence} />
@@ -284,7 +284,7 @@ export function RomanticView({
   return (
     <div className="results">
       <div className="result-intro">
-        <span className="eyebrow">Profile says</span>
+        <span className="eyebrow">What stands out</span>
         <p>{data.summary.text}</p>
         <Sources ids={data.summary.evidenceIds} evidence={evidence} />
       </div>

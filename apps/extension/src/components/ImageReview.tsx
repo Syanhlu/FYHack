@@ -169,6 +169,11 @@ export function ImageReview({
     <section className="image-review" aria-label="Profile photo analysis">
       <h2>Explore their photos</h2>
       <p className="hint">
+        Look for small details: a project in progress, an interesting book, or a distinctive
+        activity. Accept the details you want to use, then generate ideas to turn them into natural
+        conversation openings.
+      </p>
+      <p className="hint">
         Automatically open profile posts and inspect up to 50 photos, including carousel slides.
         Photos are analysed as displayed, including overlays. Sends cropped photos to your local
         backend and OpenAI. Image text and contact details may remain visible in the pixels.
