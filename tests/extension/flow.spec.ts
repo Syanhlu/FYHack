@@ -65,7 +65,7 @@ const test = base.extend<{
       chrome.storage.session.set({ backendToken: 'integration-test-token-only' }),
     );
     const page = await context.newPage();
-    await page.goto(`chrome-extension://${extensionId}/sidepanel.html`);
+    await page.goto(`chrome-extension://${extensionId}/panel.html`);
     await use(page);
   },
 });
@@ -76,6 +76,33 @@ async function paste(panel: Page) {
   await panel.getByLabel('Profile text', { exact: true }).fill(sampleText);
   await panel.getByRole('button', { name: 'Review this text' }).click();
 }
+test('in-page overlay reads its containing profile tab', async ({
+  context,
+  extensionId,
+  calls,
+}) => {
+  void calls;
+  const profile = await context.newPage();
+  await profile.setViewportSize({ width: 1280, height: 900 });
+  await profile.goto('http://localhost:4173');
+  await profile.bringToFront();
+  const worker = context.serviceWorkers()[0]!;
+  await worker.evaluate(async () => {
+    const [tab] = await chrome.tabs.query({ url: 'http://localhost:4173/*' });
+    if (!tab?.id) throw new Error('Profile fixture tab is missing');
+    await chrome.storage.session.set({
+      backendToken: 'integration-test-token-only',
+      overlayTabs: [tab.id],
+    });
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['overlay.js'] });
+  });
+  const frameUrl = `chrome-extension://${extensionId}/panel.html`;
+  await expect.poll(() => profile.frames().some((frame) => frame.url() === frameUrl)).toBe(true);
+  const panel = profile.frames().find((frame) => frame.url() === frameUrl)!;
+  await panel.getByRole('button', { name: 'Read this profile', exact: true }).click();
+  await expect(panel.getByText('Alex Morgan', { exact: true })).toBeVisible();
+  await expect(panel.getByRole('heading', { name: 'Review the details.' })).toBeVisible();
+});
 test('both modes use the backend with current input and render boards, sources and drafts', async ({
   panel,
   calls,

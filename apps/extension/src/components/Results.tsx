@@ -11,6 +11,11 @@ import type {
   UserContext,
 } from '@profile-lens/contracts';
 
+// Model labels sometimes arrive as identifiers ("coffee_chat_invitation"); show them as words.
+export const readable = (value: string) => {
+  const words = value.replace(/[_-]+/g, ' ').trim();
+  return words === value ? value : words.charAt(0).toUpperCase() + words.slice(1);
+};
 export interface ResultProps<T> {
   data: T;
   evidence: Evidence[];
@@ -46,7 +51,7 @@ export function Sources({
         const u = userContext.find((u) => u.id === id);
         return u ? (
           <blockquote key={id}>
-            <small>From you · {u.kind}</small>
+            <small>From you · {u.kind === 'cv' ? 'your CV' : u.kind}</small>
             {u.text}
           </blockquote>
         ) : null;
@@ -77,7 +82,7 @@ export function DraftCard({
   };
   return (
     <article className="draft-card">
-      <label htmlFor={`draft-${draft.id}`}>{draft.label}</label>
+      <label htmlFor={`draft-${draft.id}`}>{readable(draft.label)}</label>
       <textarea
         id={`draft-${draft.id}`}
         value={value}
@@ -123,7 +128,9 @@ export function MoodboardView({ board, evidence }: { board: Moodboard; evidence:
         </div>
         <Sparkles size={18} />
       </div>
-      <p className="hint">Creative interpretation · {board.aestheticTags.join(' / ')}</p>
+      <p className="hint">
+        Creative interpretation · {board.aestheticTags.map(readable).join(' / ')}
+      </p>
       <div
         className="moodboard"
         style={
@@ -301,7 +308,9 @@ export function RomanticView({
             <div className="tags">
               <span>{idea.durationBand}</span>
               <span>{idea.costBand} cost</span>
-              <span>{idea.setting}</span>
+              <span>
+                {idea.setting === 'either' ? 'Indoor or outdoor' : readable(idea.setting)}
+              </span>
             </div>
             <p>{idea.activity}</p>
             <p className="muted">{idea.rationale.text}</p>

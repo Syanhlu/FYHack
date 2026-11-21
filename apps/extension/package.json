@@ -14,6 +14,7 @@
     "@profile-lens/contracts": "workspace:*",
     "@wxt-dev/module-react": "1.2.2",
     "lucide-react": "1.77.0",
+    "pdfjs-dist": "6.4.299",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "wxt": "0.21.5"

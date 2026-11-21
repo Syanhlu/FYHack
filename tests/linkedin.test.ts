@@ -158,6 +158,27 @@ describe('LinkedIn loading and expansion', () => {
     expect(JSON.stringify(result)).not.toContain('Preview skill');
     expect(result!.warnings).toEqual([]);
   });
+  it('reads detail views whose section title is not a heading', async () => {
+    page(
+      '<section><h2>Education</h2><p>Preview school</p><a href="/in/alex/details/education/">Show all education</a></section>',
+    );
+    const loadDetail = async (_url: string, consume: (doc: Document) => Promise<void>) => {
+      const frame = document.createElement('iframe');
+      document.body.append(frame);
+      const detail = frame.contentDocument!;
+      detail.body.innerHTML =
+        '<section aria-label="Primary content"><p>Education</p><p>Example University, BSc Computer Science</p></section>';
+      vi.spyOn(frame.contentWindow!, 'scrollTo').mockImplementation(() => {});
+      try {
+        await consume(detail);
+      } finally {
+        frame.remove();
+      }
+    };
+    const result = await captureLinkedIn(document, href, { wait, loadDetail });
+    expect(JSON.stringify(result!.blocks)).toContain('Example University, BSc Computer Science');
+    expect(result!.warnings).toEqual([]);
+  });
   it('keeps the preview and reports unavailable detail views', async () => {
     page(
       '<section><h2>Skills</h2><p>Preview skill</p><a href="/in/alex/details/skills/">Show all skills</a></section>',

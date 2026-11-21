@@ -5,7 +5,10 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('capture errors', () => {
   function mockBrowser(executeScript: ReturnType<typeof vi.fn>) {
+    const panel = {};
+    vi.stubGlobal('window', Object.assign(panel, { top: panel }));
     vi.stubGlobal('chrome', {
+      storage: { session: { get: vi.fn().mockResolvedValue({}) } },
       tabs: { query: vi.fn().mockResolvedValue([{ id: 1 }]) },
       scripting: { executeScript },
     });
@@ -27,5 +30,14 @@ describe('capture errors', () => {
   it('distinguishes missing script results from denied access', async () => {
     mockBrowser(vi.fn().mockResolvedValue([{ result: undefined }]));
     await expect(capture()).rejects.toThrow('page reader returned no profile');
+  });
+  it('reads the containing tab when the panel is embedded in a page', async () => {
+    const executeScript = vi.fn().mockResolvedValue([{ result: undefined }]);
+    mockBrowser(executeScript);
+    vi.stubGlobal('window', { top: {} });
+    chrome.tabs.getCurrent = vi.fn().mockResolvedValue({ id: 42 });
+    await expect(capture()).rejects.toThrow('page reader returned no profile');
+    expect(executeScript).toHaveBeenCalledWith({ target: { tabId: 42 }, files: ['extract.js'] });
+    expect(chrome.tabs.query).not.toHaveBeenCalled();
   });
 });

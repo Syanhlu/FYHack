@@ -9,6 +9,8 @@ import type { PhotoScan } from '../apps/extension/src/extraction/images';
 
 afterEach(() => vi.unstubAllGlobals());
 function setup(total: number) {
+  const panel = {};
+  vi.stubGlobal('window', Object.assign(panel, { top: panel }));
   const snapshot: LocalSnapshot = {
     profile: manualProfile('I enjoy art and outdoor activities.'),
     tabId: 1,
@@ -43,6 +45,7 @@ function setup(total: number) {
     return scan();
   });
   vi.stubGlobal('chrome', {
+    storage: { session: { get: vi.fn(async () => ({})) } },
     tabs: {
       query: vi.fn(async () => [{ id: 1, windowId: 1 }]),
       sendMessage,

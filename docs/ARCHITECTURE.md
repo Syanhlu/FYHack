@@ -19,7 +19,7 @@ flowchart LR
 - `apps/extension/src/extraction`: conservative rendered-text capture with generic, LinkedIn, and Instagram adapters. Instagram requires a visible header username matching an individual-profile route and limits evidence to header bio text. The unlisted entrypoint is injected only after an explicit user action.
 - `apps/extension/entrypoints/extract.ts`: capture identity listener, scoped to one snapshot and cleaned up on release or a bounded timeout.
 - `apps/extension/entrypoints/background.ts`: opening behaviour, trusted storage access, tab-event notifications. No long model requests.
-- `apps/extension/entrypoints/sidepanel/App.tsx`: review workflow, cancellation epochs, per-session cache, current-page checks, and input changes.
+- `apps/extension/entrypoints/panel/App.tsx`: review workflow, cancellation epochs, per-session cache, current-page checks, and input changes.
 - `apps/extension/src/modes`: mode metadata, preferences, input gates, and typed renderers.
 - `apps/api/src/app.ts`: body/auth/origin/rate limits, mode dispatch, prechecks, overall deadline, validated response envelope.
 - `apps/api/src/providers/live.ts`: the only runtime generation provider. OpenAI SDK with strict schema, `store: false`, no tools, and automatic retries disabled.

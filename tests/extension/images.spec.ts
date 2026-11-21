@@ -215,6 +215,7 @@ for (const variant of [
         Object.defineProperty(window, 'chrome', {
           configurable: true,
           value: {
+            storage: { session: { get: async () => ({}) } },
             runtime: {
               id: 'fixture',
               onMessage: {

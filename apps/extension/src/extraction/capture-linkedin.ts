@@ -155,7 +155,8 @@ export async function captureLinkedIn(doc: Document, href: string, options: Capt
         const heading = [...root.querySelectorAll('h1,h2,[role="heading"]')].find(
           (node) => isVisible(node) && sectionLabel(visibleText(node)) === label,
         );
-        root = (section?.node as HTMLElement) ?? (heading ? root : null);
+        // A detail route holds only this section, and LinkedIn titles it with a plain <p>.
+        root = (section?.node as HTMLElement) ?? (heading || target !== doc ? root : null);
       }
       if (!root) {
         await wait(300);

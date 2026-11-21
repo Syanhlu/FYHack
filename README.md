@@ -30,7 +30,7 @@ The OpenAI key stays in the server environment. Do not paste it into the extensi
 
 ## What is implemented
 
-- WXT / React / TypeScript Manifest V3 extension with a side panel and temporary `activeTab` extraction.
+- WXT / React / TypeScript Manifest V3 extension with a movable in-page overlay and temporary `activeTab` extraction.
 - Generic individual-profile extraction, best-effort LinkedIn and Instagram adapters, and manual paste fallback. LinkedIn capture scrolls, expands section text and dialogs, and attempts same-profile Show all detail views.
 - Optional automatic Instagram photo analysis: up to 50 unique photos from opened posts and carousels, local cropping, bounded scrolling, three-photo batches, Stop, and reviewed visual/OCR evidence.
 - Editable/removable evidence, optional user context, mode-specific preferences, and source drawers.

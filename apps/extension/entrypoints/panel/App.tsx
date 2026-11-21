@@ -33,6 +33,7 @@ import { profileSchema, type Evidence } from '@profile-lens/contracts';
 import { clientModes } from '../../src/modes';
 import { analyse, checkConnection } from '../../src/services/backend';
 import { capture, isCurrent, readToken, release, saveToken } from '../../src/services/browser';
+import { cvContext, readCv, type SavedCv } from '../../src/services/cv';
 
 type Stage = 'idle' | 'extracting' | 'reviewing' | 'analysing' | 'ready';
 export default function App() {
@@ -46,6 +47,8 @@ export default function App() {
   const [notice, setNotice] = useState('');
   const [contextText, setContextText] = useState('');
   const [remember, setRemember] = useState(false);
+  const [cv, setCv] = useState<SavedCv | null>(null);
+  const [cvStatus, setCvStatus] = useState('');
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [token, setToken] = useState('');
   const [settings, setSettings] = useState(false);
@@ -88,6 +91,11 @@ export default function App() {
   };
   useEffect(() => {
     void readToken().then(setToken);
+    void chrome.storage.local.get('savedCv').then(({ savedCv }) => {
+      const value = savedCv as Partial<SavedCv> | undefined;
+      if (typeof value?.name === 'string' && typeof value.text === 'string')
+        setCv({ name: value.name, text: value.text });
+    });
     void chrome.storage.local.get('savedContext').then(({ savedContext }) => {
       if (typeof savedContext === 'string') {
         setContextText(savedContext);
@@ -224,12 +232,39 @@ export default function App() {
       },
     });
   };
-  const userContext = (): UserContext =>
-    contextText
+  const userContext = (): UserContext => [
+    ...contextText
       .split(/\n+/)
       .filter((s) => s.trim())
       .slice(0, 5)
-      .map((text, i) => ({ id: `u${i + 1}`, kind: 'interest', text: text.trim().slice(0, 600) }));
+      .map((text, i) => ({
+        id: `u${i + 1}`,
+        kind: 'interest' as const,
+        text: text.trim().slice(0, 600),
+      })),
+    ...(modeId === 'outreach' && cv ? cvContext(cv.text) : []),
+  ];
+  const uploadCv = async (file: File | undefined) => {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setCvStatus('That file is over 5 MB. Export a smaller PDF or a .txt file.');
+      return;
+    }
+    setCvStatus('Reading your CV…');
+    try {
+      const value = await readCv(file);
+      await chrome.storage.local.set({ savedCv: value });
+      invalidate();
+      setCv(value);
+      setCvStatus('CV saved on this device. Contact details were removed.');
+    } catch (error) {
+      setCvStatus(
+        error instanceof Error && error.message.startsWith('No readable')
+          ? error.message
+          : 'Could not read that file. Try a PDF or a .txt export.',
+      );
+    }
+  };
   const beforeCopy = async () => {
     const value = currentSnapshot.current;
     if (
@@ -402,6 +437,36 @@ export default function App() {
             />
           </label>
           <p className="hint mono">Extension ID: {chrome.runtime.id}</p>
+          <label className="context-label">
+            Your CV <span>optional · used in Outreach</span>
+            <input
+              type="file"
+              accept=".pdf,.txt,.md,application/pdf,text/plain"
+              onChange={(e) => {
+                void uploadCv(e.target.files?.[0]);
+                e.target.value = '';
+              }}
+            />
+          </label>
+          {cv && (
+            <p className="hint">
+              Using {cv.name} ({cv.text.length.toLocaleString()} characters).{' '}
+              <button
+                className="text-button"
+                onClick={() => {
+                  invalidate();
+                  setCv(null);
+                  setCvStatus('CV removed.');
+                  void chrome.storage.local.remove('savedCv');
+                }}
+              >
+                Remove CV
+              </button>
+            </p>
+          )}
+          <p role="status" className="hint">
+            {cvStatus}
+          </p>
           <button
             className="button secondary"
             disabled={checking || !token.trim()}
@@ -419,6 +484,8 @@ export default function App() {
               clear();
               setContextText('');
               setRemember(false);
+              setCv(null);
+              setCvStatus('');
               setToken('');
               setConnection('Settings cleared.');
               void chrome.storage.local.clear();
@@ -637,6 +704,13 @@ export default function App() {
                 />
                 <span>Remember my context on this device</span>
               </label>
+              {modeId === 'outreach' && (
+                <p className="hint">
+                  {cv
+                    ? `Your CV (${cv.name}) is included to personalise ideas and drafts.`
+                    : 'Add your CV in settings to personalise ideas and drafts.'}
+                </p>
+              )}
               <mode.InputFields
                 value={config}
                 onChange={(value) => {
