@@ -1,5 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
-import { SCHEMA_VERSION, type Evidence, type LocalSnapshot } from '@profile-lens/contracts';
+import { useEffect, useId, useRef, useState } from 'react';
+import {
+  IMAGE_LIMIT,
+  SCHEMA_VERSION,
+  type Evidence,
+  type LocalSnapshot,
+} from '@profile-lens/contracts';
 import { analyseProfileImages, type PhotoReview, type PhotoSkipReason } from '../services/images';
 import { checkConnection } from '../services/backend';
 
@@ -31,6 +36,8 @@ export function ImageReview({
   const [attempted, setAttempted] = useState(false);
   const [status, setStatus] = useState('');
   const [skipReasons, setSkipReasons] = useState<PhotoSkipReason[]>([]);
+  const [maxPhotos, setMaxPhotos] = useState(IMAGE_LIMIT);
+  const photoLimitId = useId();
   const abort = useRef<AbortController | null>(null);
   const generation = useRef(0);
   const completed = useRef(0);
@@ -43,7 +50,7 @@ export function ImageReview({
     setRunning(false);
     busyCallback.current(false);
     setStatus(
-      `${completed.current} / 50 photos analysed. Stopped; completed observations are available below.`,
+      `${completed.current} / ${maxPhotos} photos analysed. Stopped; completed observations are available below.`,
     );
   };
   useEffect(() => {
@@ -121,7 +128,7 @@ export function ImageReview({
     setRunning(true);
     onBusy(true);
     setStatus(
-      '0 / 50 photos analysed. Keep Instagram open; posts and carousel photos will open automatically.',
+      `0 / ${maxPhotos} photos analysed. Keep Instagram open; posts and carousel photos will open automatically.`,
     );
     try {
       const message = await analyseProfileImages(
@@ -141,7 +148,7 @@ export function ImageReview({
               })),
             })),
           ]);
-          setStatus(`${count} / 50 photos analysed. Keep the profile open.`);
+          setStatus(`${count} / ${maxPhotos} photos analysed. Keep the profile open.`);
         },
         undefined,
         (message, skips) => {
@@ -150,12 +157,13 @@ export function ImageReview({
             setSkipReasons(skips);
           }
         },
+        maxPhotos,
       );
       if (revision === generation.current) setStatus(message);
     } catch (error) {
       if (revision === generation.current)
         setStatus(
-          `${completed.current} / 50 photos analysed. Partial result: ${error instanceof Error ? error.message : 'Photo analysis stopped.'}`,
+          `${completed.current} / ${maxPhotos} photos analysed. Partial result: ${error instanceof Error ? error.message : 'Photo analysis stopped.'}`,
         );
     } finally {
       if (revision === generation.current) {
@@ -174,10 +182,28 @@ export function ImageReview({
         conversation openings.
       </p>
       <p className="hint">
-        Automatically open profile posts and inspect up to 50 photos, including carousel slides.
-        Photos are analysed as displayed, including overlays. Sends cropped photos to your local
-        backend and OpenAI. Image text and contact details may remain visible in the pixels.
+        Automatically open profile posts and inspect up to {maxPhotos} photos, including carousel
+        slides. Photos are analysed as displayed, including overlays. Sends cropped photos to your
+        local backend and OpenAI. Image text and contact details may remain visible in the pixels.
       </p>
+      <div className="photo-limit">
+        <label htmlFor={photoLimitId}>Maximum photos: {maxPhotos}</label>
+        <input
+          id={photoLimitId}
+          type="range"
+          min={1}
+          max={IMAGE_LIMIT}
+          step={1}
+          value={maxPhotos}
+          disabled={disabled || running || attempted}
+          onChange={(event) => setMaxPhotos(Number(event.target.value))}
+          aria-describedby={`${photoLimitId}-hint`}
+        />
+        <p id={`${photoLimitId}-hint`} className="hint">
+          Choose 1–{IMAGE_LIMIT} photos. Fewer photos means a quicker run and fewer AI requests.
+          Each carousel slide counts as one photo.
+        </p>
+      </div>
       {!available && (
         <div>
           <p className="hint" role="status">

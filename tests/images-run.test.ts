@@ -83,6 +83,49 @@ function setup(total: number) {
   return { snapshot, screenshot, batches, operations, sendMessage };
 }
 describe('automatic photo runs', () => {
+  it.each([1, 2, 4, 7, 50])(
+    'stops capture and submission at the selected %s-photo limit',
+    async (limit) => {
+      const { snapshot, screenshot, batches, operations } = setup(65);
+      const progress = vi.fn();
+      const message = await analyseProfileImages(
+        snapshot,
+        'token',
+        new AbortController().signal,
+        () => undefined,
+        operations,
+        progress,
+        limit,
+      );
+      expect(screenshot).toHaveBeenCalledTimes(limit);
+      expect(batches.flatMap((batch) => batch.images)).toHaveLength(limit);
+      expect(batches.at(-1)?.images).toHaveLength(limit % 3 || 3);
+      expect(message).toContain(`${limit} / ${limit} photos analysed`);
+      expect(message).toContain(`Reached the ${limit}-photo limit.`);
+      expect(
+        progress.mock.calls.every(([message]) => message.includes(`/ ${limit} photos analysed`)),
+      ).toBe(true);
+    },
+  );
+  it.each([0, 51, 1.5, NaN])(
+    'rejects invalid limit %s before capturing or sending data',
+    async (limit) => {
+      const { snapshot, screenshot, operations } = setup(65);
+      await expect(
+        analyseProfileImages(
+          snapshot,
+          'token',
+          new AbortController().signal,
+          () => undefined,
+          operations,
+          undefined,
+          limit,
+        ),
+      ).rejects.toThrow('Choose a photo limit');
+      expect(screenshot).not.toHaveBeenCalled();
+      expect(fetch).not.toHaveBeenCalled();
+    },
+  );
   it.each([0, 1, 49, 50, 65])(
     'processes %s available photos within the 50-photo cap',
     async (total) => {

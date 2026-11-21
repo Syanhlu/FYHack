@@ -24,6 +24,52 @@ const snapshot: LocalSnapshot = {
   inputRevision: 0,
 };
 describe('image review', () => {
+  it.each(['stop', 'error', 'complete'])(
+    'uses the selected photo limit through %s',
+    async (outcome) => {
+      vi.mocked(analyseProfileImages).mockImplementation(
+        async (_s, _t, _signal, batch, _ops, _progress, limit) => {
+          batch([], 2);
+          if (outcome === 'error') throw new Error('Post navigation failed.');
+          if (outcome === 'complete')
+            return `2 / ${limit} photos analysed. Reached the end of the available profile posts.`;
+          return new Promise(() => undefined);
+        },
+      );
+      render(
+        <ImageReview
+          snapshot={snapshot}
+          token="token"
+          disabled={false}
+          onBusy={() => undefined}
+          onAccept={() => undefined}
+          onRemove={() => undefined}
+        />,
+      );
+      await waitFor(() =>
+        expect((screen.getByText('Analyse profile images') as HTMLButtonElement).disabled).toBe(
+          false,
+        ),
+      );
+      const slider = screen.getByRole('slider', { name: 'Maximum photos: 50' }) as HTMLInputElement;
+      expect(slider.min).toBe('1');
+      expect(slider.max).toBe('50');
+      fireEvent.change(slider, { target: { value: '7' } });
+      expect(screen.getByText('Maximum photos: 7')).toBeTruthy();
+      fireEvent.click(screen.getByText('Analyse profile images'));
+      expect(vi.mocked(analyseProfileImages).mock.calls[0][6]).toBe(7);
+      expect(slider.disabled).toBe(true);
+      if (outcome === 'stop') fireEvent.click(await screen.findByText('Stop photo analysis'));
+      await screen.findByText(
+        outcome === 'stop'
+          ? /2 \/ 7 photos analysed\. Stopped/
+          : outcome === 'error'
+            ? /2 \/ 7 photos analysed\. Partial result/
+            : /2 \/ 7 photos analysed\. Reached the end/,
+      );
+      expect(slider.disabled).toBe(true);
+    },
+  );
   it.each(['stop', 'error', 'complete'])('keeps skip reasons visible after %s', async (outcome) => {
     vi.mocked(analyseProfileImages).mockImplementation(
       async (_s, _t, _signal, _batch, _ops, progress) => {

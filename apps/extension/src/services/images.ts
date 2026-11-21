@@ -130,7 +130,10 @@ export async function analyseProfileImages(
   onBatch: (photos: PhotoReview[], count: number) => void,
   operations = { crop: cropPhoto, wait: delay },
   onProgress?: (message: string, skips: PhotoSkipReason[]) => void,
+  maxPhotos: number = IMAGE_LIMIT,
 ): Promise<string> {
+  if (!Number.isInteger(maxPhotos) || maxPhotos < 1 || maxPhotos > IMAGE_LIMIT)
+    throw new Error(`Choose a photo limit between 1 and ${IMAGE_LIMIT}.`);
   if (snapshot.tabId === null || snapshot.adapterId !== 'instagram-best-effort')
     throw new Error('Read an Instagram profile first.');
   const caps = await checkConnection(token);
@@ -188,7 +191,7 @@ export async function analyseProfileImages(
       : '';
   const progress = (phase: string) =>
     onProgress?.(
-      `${count} / 50 photos analysed · ${captured} captured · ${skipped} skipped. ${phase}`,
+      `${count} / ${maxPhotos} photos analysed · ${captured} captured · ${skipped} skipped. ${phase}`,
       [...skipReasons].map(([reason, count]) => ({ reason, count })),
     );
   const skip = (reason: string) => {
@@ -248,7 +251,7 @@ export async function analyseProfileImages(
     progress('Opening the first post…');
     await command('begin');
     while (
-      count + batch.length < IMAGE_LIMIT &&
+      count + batch.length < maxPhotos &&
       advances < 250 &&
       seen.size < 200 &&
       discoveryMs < 300000
@@ -260,7 +263,7 @@ export async function analyseProfileImages(
       if (!scan.candidates.length && !scan.end)
         skip(scan.skipReason ?? 'No capturable photo was found in this post.');
       for (const candidate of scan.candidates) {
-        if (count + batch.length >= IMAGE_LIMIT || seen.size >= 200) break;
+        if (count + batch.length >= maxPhotos || seen.size >= 200) break;
         if (seen.has(candidate.key)) continue;
         const attempt = (captureAttempts.get(candidate.key) ?? 0) + 1;
         captureAttempts.set(candidate.key, attempt);
@@ -316,8 +319,8 @@ export async function analyseProfileImages(
         }
       }
       discoveryMs += Date.now() - started;
-      if (count + batch.length >= IMAGE_LIMIT) {
-        reason = 'Reached the 50-photo limit.';
+      if (count + batch.length >= maxPhotos) {
+        reason = `Reached the ${maxPhotos}-photo limit.`;
         break;
       }
       // Re-scan the same viewport if a batch was submitted before all candidates were visited.
@@ -333,7 +336,7 @@ export async function analyseProfileImages(
       discoveryMs += Date.now() - navigationStarted;
     }
     await submit();
-    message = `${count} / 50 photos analysed · ${captured} captured · ${skipped} skipped. ${reason}${skipSummary()}`;
+    message = `${count} / ${maxPhotos} photos analysed · ${captured} captured · ${skipped} skipped. ${reason}${skipSummary()}`;
   } catch (error) {
     captureFailure = error;
   } finally {
