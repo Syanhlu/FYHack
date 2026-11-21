@@ -146,13 +146,29 @@ Short captions, natural language, no HTML, URLs, or exact addresses/schedules. N
 Draft labels are short plain-English titles such as "Connection note", never identifiers like connection_note.
 Only use the supplied music and image catalogues. Aesthetic tags and music express creative interpretation, not a factual identity.`;
 
+// Photo evidence IDs embed a UUID, and models garble long IDs when copying them (splicing
+// two together). The model is shown short stand-ins, which are mapped back before checks.
+function shortIds(input: AnalysisRequest) {
+  const taken = new Set(input.profile.evidence.map((e) => e.id));
+  const short = new Map<string, string>();
+  let next = 1;
+  for (const { id } of input.profile.evidence) {
+    if (id.length <= 12) continue;
+    let alias = `p${next++}`;
+    while (taken.has(alias)) alias = `p${next++}`;
+    taken.add(alias);
+    short.set(id, alias);
+  }
+  return short;
+}
 export function promptFor(mode: ServerMode, input: AnalysisRequest) {
+  const short = shortIds(input);
   return [
     { role: 'system' as const, content: `${sharedInstructions}\n${mode.instructions}` },
     {
       role: 'user' as const,
       content: JSON.stringify({
-        evidence: input.profile.evidence,
+        evidence: input.profile.evidence.map((e) => ({ ...e, id: short.get(e.id) ?? e.id })),
         eligibilitySignals: input.profile.eligibilitySignals,
         userContext: input.userContext,
         preferences: input.modeConfig,
@@ -176,6 +192,7 @@ export function validateOutcome(mode: ServerMode, raw: unknown, input: AnalysisR
     input.profile.evidence.filter((e) => e.sourceKind === 'visual').map((e) => e.id),
   );
   const userIds = new Set(input.userContext.map((u) => u.id));
+  const full = new Map([...shortIds(input)].map(([id, alias]) => [alias, id]));
   const errors: string[] = [];
   function walk(value: unknown) {
     if (typeof value === 'string') {
@@ -189,6 +206,8 @@ export function validateOutcome(mode: ServerMode, raw: unknown, input: AnalysisR
       return;
     }
     const obj = value as Record<string, unknown>;
+    if (Array.isArray(obj.evidenceIds))
+      obj.evidenceIds = obj.evidenceIds.map((id) => full.get(id as string) ?? id);
     // Models sometimes file the user's own context IDs (CV chunks) under evidenceIds.
     // Refile them instead of rejecting; a claim left with no profile evidence still fails.
     if (Array.isArray(obj.evidenceIds)) {
