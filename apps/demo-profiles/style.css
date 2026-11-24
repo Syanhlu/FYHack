@@ -3,8 +3,8 @@
 }
 body {
   margin: 0;
-  background: #f6f4ec;
-  color: #243c32;
+  background: #f5f7fc;
+  color: #182747;
   font-family: system-ui, sans-serif;
 }
 nav {
@@ -12,7 +12,7 @@ nav {
   align-items: center;
   gap: 22px;
   padding: 22px 5%;
-  border-bottom: 1px solid #d7ddcf;
+  border-bottom: 1px solid #dce2ef;
   font-size: 11px;
 }
 nav a {
@@ -23,11 +23,11 @@ nav a {
 }
 nav span {
   margin-left: auto;
-  color: #667562;
+  color: #616d83;
 }
 button {
   padding: 9px 12px;
-  border: 1px solid #b7c5ad;
+  border: 1px solid #b8c9ed;
   border-radius: 5px;
   color: inherit;
   background: transparent;
@@ -44,7 +44,7 @@ main > .avatar {
   height: 106px;
   display: grid;
   place-items: center;
-  background: #d9e1ca;
+  background: #d8e4ff;
   border-radius: 50%;
   font-size: 38px;
   font-family: Georgia, serif;
@@ -52,7 +52,7 @@ main > .avatar {
 small {
   font-size: 10px;
   letter-spacing: 2px;
-  color: #718168;
+  color: #616d83;
 }
 h1 {
   font-family: Georgia, serif;
@@ -69,10 +69,10 @@ h2 {
   margin: 0 0 13px;
 }
 .headline {
-  color: #677b62;
+  color: #616d83;
 }
 section {
-  border-top: 1px solid #d7ddcf;
+  border-top: 1px solid #dce2ef;
   padding: 24px 0 12px;
 }
 p {
@@ -84,15 +84,15 @@ aside {
   max-width: 670px;
   margin: 0 auto 50px;
   padding: 20px;
-  border: 1px solid #d7ddcf;
-  background: #e8eddf;
+  border: 1px solid #dce2ef;
+  background: #eaf0ff;
   border-radius: 7px;
   font-size: 12px;
   line-height: 1.6;
 }
 button:focus-visible,
 a:focus-visible {
-  outline: 3px solid #b6853c;
+  outline: 3px solid #4262d5;
   outline-offset: 3px;
 }
 @media (max-width: 700px) {

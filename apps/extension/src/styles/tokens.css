@@ -1,9 +1,10 @@
 :root {
-  --paper: #faf8f2;
-  --white: #fffefa;
-  --ink: #28362e;
-  --muted: #6a7066;
-  --line: #e3e4d8;
-  --focus: #b6853c;
+  --paper: #f5f7fc;
+  --white: #ffffff;
+  --ink: #182747;
+  --muted: #616d83;
+  --line: #dce2ef;
+  --focus: #4262d5;
+  --brand: #3155c6;
   color-scheme: light;
 }

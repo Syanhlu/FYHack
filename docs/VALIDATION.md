@@ -38,7 +38,7 @@ The native check revealed that automatic panel toggling opened the panel without
 
 An initial live Outreach evaluation failed the invitation's minimum word count. The prompt was clarified without weakening validation; both mode evaluations then passed. The installed extension generated a live Outreach board, cited conversation starters and two editable drafts. Romantic Pursue's native panel flow has automated Chromium coverage and a passing live provider evaluation, but was not manually generated in the personal Chrome profile during setup.
 
-The dedicated Chrome window is named **Profile Lens · Hackathon**. The local API runs at `http://127.0.0.1:8787` and the fictional profiles at `http://localhost:4173`. Restart both with `pnpm demo` (or `npx --yes pnpm@10.28.0 demo`) after stopping existing servers. Chrome reloads/restarts clear the connection token from extension session storage; reconnect using `BACKEND_ACCESS_TOKEN` from `.env` when needed.
+The dedicated Chrome window is named **WingMan · Hackathon**. The local API runs at `http://127.0.0.1:8787` and the fictional profiles at `http://localhost:4173`. Restart both with `pnpm demo` (or `npx --yes pnpm@10.28.0 demo`) after stopping existing servers. Chrome reloads/restarts clear the connection token from extension session storage; reconnect using `BACKEND_ACCESS_TOKEN` from `.env` when needed.
 
 Follow [DEMO_SCRIPT.md](DEMO_SCRIPT.md) for the remaining native Chrome, real-site and quality checks before presenting.
 

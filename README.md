@@ -1,4 +1,4 @@
-# Profile Lens
+# WingMan
 
 A Chrome side-panel extension for thoughtful first conversations. **Outreach** finds professional hooks and coffee-chat starters. **Romantic Pursue** turns an adult's stated interests into date possibilities, a moodboard, and a soundtrack pick.
 
@@ -19,7 +19,7 @@ cp .env.example .env
 ```
 
 1. Open **chrome://extensions**, enable **Developer mode**, and choose **Load unpacked**.
-2. Select **`apps/extension/.output/chrome-mv3`**. Pin Profile Lens in the toolbar.
+2. Select **`apps/extension/.output/chrome-mv3`**. Pin WingMan in the toolbar.
 3. Copy its extension ID into `.env` as `ALLOWED_EXTENSION_ORIGIN=chrome-extension://YOUR_ID`.
 4. Set `OPENAI_API_KEY` and `OPENAI_MODEL` in that same root `.env`. Choose a model in your account that supports Structured Outputs; the implementation does not assume a particular account/model entitlement.
 5. Run `pnpm demo`. It starts the live API on **127.0.0.1:8787** and the sample pages on **localhost:4173**. Internet access/provider credits are required for AI generation.

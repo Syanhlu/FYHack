@@ -21,7 +21,7 @@ export const assets = topics.flatMap(([topic, title, tags]) =>
     title,
     alt: `Original ${variant}-palette illustration of ${title.toLowerCase()}`,
     tags: [...tags],
-    credit: 'Original Profile Lens vector artwork',
+    credit: 'Original WingMan vector artwork',
     licence: 'Project-owned original artwork',
   })),
 );

@@ -21,7 +21,7 @@ type CaptureOptions = {
  * Frame/CSP/login failures become explicit partial-capture warnings. */
 async function loadDetail(doc: Document, url: string, consume: (doc: Document) => Promise<void>) {
   const frame = doc.createElement('iframe');
-  frame.title = 'Profile Lens section reader';
+  frame.title = 'WingMan section reader';
   frame.setAttribute('aria-hidden', 'true');
   frame.style.cssText =
     'position:fixed;left:-10000px;top:0;width:1280px;height:900px;pointer-events:none;';

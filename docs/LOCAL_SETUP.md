@@ -1,4 +1,4 @@
-# Profile Lens: local setup on another computer
+# WingMan: local setup on another computer
 
 This guide sets up the real Chrome extension and live AI backend from the `main` branch. Repeat it on each computer. Run commands from the repository root unless a step says otherwise.
 
@@ -6,7 +6,7 @@ This guide sets up the real Chrome extension and live AI backend from the `main`
 
 | Component                 | Location                               | Purpose                                                                                         |
 | ------------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Profile Lens extension    | Your desktop Chrome profile            | Reads the current profile after a toolbar click, lets you review the text, and displays results |
+| WingMan extension    | Your desktop Chrome profile            | Reads the current profile after a toolbar click, lets you review the text, and displays results |
 | Local API                 | `http://127.0.0.1:8787`                | Authenticates the extension, calls OpenAI, and validates responses                              |
 | Fictional sample profiles | `http://localhost:4173`                | Provides repeatable input for testing and demos                                                 |
 | OpenAI API                | Internet connection from the local API | Generates the analysis, drafts, board selections and romantic soundtrack selection              |
@@ -71,14 +71,14 @@ It must contain `manifest.json`, `panel.html`, `background.js` and the built ass
 
 Dependencies, generated builds, private `.env` files and test output are intentionally excluded from Git. A fresh clone needs the install and build steps; copying only the source extension directory into Chrome will not work.
 
-## 3. Load Profile Lens into Chrome
+## 3. Load WingMan into Chrome
 
 1. Open `chrome://extensions` in the Chrome profile you will use for the demo.
 2. Enable **Developer mode**.
 3. Click **Load unpacked** and select `apps/extension/.output/chrome-mv3` inside your clone. Select the directory containing `manifest.json`, not the repository root or a ZIP file.
-4. Confirm that **Profile Lens** is enabled.
-5. Open Chrome's extensions menu (the puzzle icon) and pin **Profile Lens** to the toolbar.
-6. Copy the **ID** shown on the Profile Lens extension card. It is 32 lowercase letters. You will use this computer's ID in the next step.
+4. Confirm that **WingMan** is enabled.
+5. Open Chrome's extensions menu (the puzzle icon) and pin **WingMan** to the toolbar.
+6. Copy the **ID** shown on the WingMan extension card. It is 32 lowercase letters. You will use this computer's ID in the next step.
 
 Do not copy the original developer's extension ID from validation notes. IDs can differ with the Chrome profile, checkout path or build mode. The backend accepts one exact extension origin at a time.
 
@@ -153,7 +153,7 @@ pnpm demo
 Leave this terminal running. It starts the API and sample-profile server together. Look for:
 
 ```text
-Profile Lens live API ready at http://127.0.0.1:8787
+WingMan live API ready at http://127.0.0.1:8787
 ```
 
 The sample server should also report `http://localhost:4173`. If you configured a fixed backend token, the API tells you to use the value from `.env` rather than displaying it.
@@ -167,7 +167,7 @@ Use **Ctrl+C** in the server terminal to stop both services. Restart `pnpm demo`
 
 ## 6. Connect the extension
 
-1. With the sample profile active, click the **Profile Lens toolbar icon** to open Profile Lens as a movable overlay on the page and grant temporary access to that tab. Click the icon again, or the ✕, to close it.
+1. With the sample profile active, click the **WingMan toolbar icon** to open WingMan as a movable overlay on the page and grant temporary access to that tab. Click the icon again, or the ✕, to close it.
 2. Open **Connection settings** using the settings icon in the panel header.
 3. Copy only the `BACKEND_ACCESS_TOKEN` value from `.env` into **Backend token**. Do not paste the `BACKEND_ACCESS_TOKEN=` prefix or the OpenAI key.
 4. Click **Check & save**.
@@ -213,7 +213,7 @@ pnpm install --frozen-lockfile
 pnpm build
 ```
 
-Go to `chrome://extensions` and click **Reload** on Profile Lens. Refresh the profile tab, check that the extension ID still matches `.env`, restart `pnpm demo`, and reconnect the token. Keep `.env`; do not copy the template over your configured file.
+Go to `chrome://extensions` and click **Reload** on WingMan. Refresh the profile tab, check that the extension ID still matches `.env`, restart `pnpm demo`, and reconnect the token. Keep `.env`; do not copy the template over your configured file.
 
 If you have local code changes, commit or otherwise preserve them before pulling. Do not discard them just to complete an update.
 
@@ -259,14 +259,14 @@ The ZIP is written under `apps/extension/.output/`. A recipient must unzip it be
 | Git clone says repository not found                          | Check the URL and authenticate to GitHub with an account that has access.                                                                                                                                                |
 | Missing manifest / cannot find `.output`                     | Finish `pnpm build`; select the exact `chrome-mv3` directory, and show hidden files or paste its full path.                                                                                                              |
 | API exits with “Setup needed”                                | `.env` must be at the repository root with a key, model and exact `chrome-extension://` origin. Check that it was not saved as `.env.txt`.                                                                               |
-| `EADDRINUSE` or “port already in use”                        | Stop the previous Profile Lens service terminal. Both the extension and tests expect 8787, and sample pages expect 4173. Avoid changing only `.env`'s port.                                                              |
+| `EADDRINUSE` or “port already in use”                        | Stop the previous WingMan service terminal. Both the extension and tests expect 8787, and sample pages expect 4173. Avoid changing only `.env`'s port.                                                              |
 | “Backend unavailable”                                        | Keep `pnpm demo` running on the same computer. Test the health URL. Check for a proxy/VPN configuration that intercepts local traffic.                                                                                   |
 | “The local token was not accepted”                           | Copy the fixed token from this device's `.env`, or the newest generated token if that setting is blank. Restart the API after changing it.                                                                               |
 | “Connection rejected”                                        | Compare the extension ID shown in settings with `ALLOWED_EXTENSION_ORIGIN`; include the scheme and omit a trailing slash, then restart the API.                                                                          |
 | Settings connect, but Generate reports provider unavailable  | Connection testing only reaches the local API. Check the OpenAI key, model access, API billing/credits and outbound internet access; use the paid live smoke check to isolate provider issues.                           |
 | “The result could not be verified”                           | Validation rejected that model response. Retry deliberately, or review/reduce the input. There is no automatic saved-response fallback.                                                                                  |
 | Timeout                                                      | Retry with less text. The API accepts `ANALYSIS_TIMEOUT_MS` from 1000 to 60000; restart it after changing this value. The live-evaluation scripts use the same configured deadline and reasoning settings as the server. |
-| Cannot read a page                                           | Click Profile Lens's toolbar icon on the current tab to grant access, then read again. Chrome internal pages and some site structures cannot be extracted; paste the relevant visible text instead.                      |
+| Cannot read a page                                           | Click WingMan's toolbar icon on the current tab to grant access, then read again. Chrome internal pages and some site structures cannot be extracted; paste the relevant visible text instead.                      |
 | Token or results disappear after a reload                    | This is expected: the connection token is session-only and analysis state lives in panel memory. Reconnect and read again.                                                                                               |
 | Changes are not visible in Chrome                            | Rebuild, reload the extension from `chrome://extensions`, and refresh the target profile tab.                                                                                                                            |
 | Browser tests cannot launch Chromium                         | Run the Playwright browser installer; Linux may also require its system dependencies. Check that no live API is occupying 8787.                                                                                          |

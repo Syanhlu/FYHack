@@ -1,11 +1,11 @@
-# Profile Lens — Chrome Extension Implementation Plan
+# WingMan — Chrome Extension Implementation Plan
 
 **Status:** Initial implementation is built. See [README.md](README.md) for setup, delivered features, validation, and remaining live/manual checks. This document remains the broader implementation specification.
 
 **Prepared:** 21 November 2026.
 
 **Audience:** An agent implementing and demonstrating a hackathon MVP.
-**Working name:** Profile Lens. Keep branding easy to change.
+**Working name:** WingMan. Keep branding easy to change.
 
 ## 1. Product and delivery decisions
 
@@ -109,7 +109,7 @@ Design for a resizable side panel, comfortable at roughly 360–480 CSS pixels a
 
 ```text
 ┌─────────────────────────────────────┐
-│ Profile Lens        Live analysis   │
+│ WingMan        Live analysis   │
 │ Alex Morgan · example profile       │
 │ [ Outreach ] [ Romantic Pursue ]    │
 ├─────────────────────────────────────┤
@@ -328,7 +328,7 @@ The following is an illustrative fragment; let WXT produce the actual entrypoint
   "manifest_version": 3,
   "permissions": ["activeTab", "scripting", "storage", "sidePanel"],
   "host_permissions": ["http://127.0.0.1/*"],
-  "action": { "default_title": "Open Profile Lens" },
+  "action": { "default_title": "Open WingMan" },
   "side_panel": { "default_path": "sidepanel.html" }
 }
 ```

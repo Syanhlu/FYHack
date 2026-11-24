@@ -5,7 +5,6 @@ import {
   ChevronLeft,
   CircleDot,
   Eye,
-  Leaf,
   LoaderCircle,
   RefreshCw,
   ScanText,
@@ -414,10 +413,8 @@ export default function App() {
     <main className={`app theme-${mode.theme}`}>
       <header className="app-header">
         <a className="brand" href="#" onClick={(e) => e.preventDefault()}>
-          <span className="brand-mark">
-            <Leaf size={19} />
-          </span>
-          profile<span className="brand-serif">lens</span>
+          <img className="brand-mark" src="/brand/wingman.svg" alt="" />
+          <span>Wing<span className="brand-tail">Man</span></span>
         </a>
         <button
           className="icon-button"
@@ -557,15 +554,9 @@ export default function App() {
           <h1>{mode.heading}</h1>
           <p>Turn what they share into a conversation that feels like you.</p>
           <div className="welcome-art" aria-hidden="true">
-            <div className="art-card art-one">
-              <img src="/moodboard/coffee-paper.svg" alt="" />
-              <span>good conversations</span>
-            </div>
-            <div className="art-card art-two">
-              <img src="/moodboard/books-warm.svg" alt="" />
-              <span>begin with curiosity.</span>
-            </div>
-            <span className="art-spark">✳</span>
+            <span className="flight-label">A LITTLE LIFT</span>
+            <img src="/brand/connection.svg" alt="" />
+            <span className="flight-caption">A real connection.</span>
           </div>
           <button
             className="button primary full"
@@ -896,8 +887,8 @@ export default function App() {
         </>
       )}
       <footer className="app-footer">
-        <span>Curiosity, with a little care.</span>
-        <span>PROFILE LENS / 01</span>
+        <span>Your words. A little lift.</span>
+        <span>WINGMAN</span>
       </footer>
     </main>
   );

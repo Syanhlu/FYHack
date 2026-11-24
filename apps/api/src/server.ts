@@ -52,7 +52,7 @@ const app = buildApp({
   }),
 });
 await app.listen({ host: '127.0.0.1', port: Number(process.env.API_PORT ?? 8787) });
-console.log('Profile Lens live API ready at http://127.0.0.1:8787');
+console.log('WingMan live API ready at http://127.0.0.1:8787');
 console.log(
   `Photo analysis: ${process.env.IMAGE_ANALYSIS_ENABLED === 'true' ? 'enabled' : 'disabled (set IMAGE_ANALYSIS_ENABLED=true and restart the API)'}`,
 );

@@ -204,7 +204,7 @@ export function MoodboardView({ board, evidence }: { board: Moodboard; evidence:
         }
       >
         <div className="poster-masthead" aria-hidden="true">
-          <span>Profile Lens</span>
+          <span>WingMan</span>
           <span>{palette.name}</span>
           <span>{new Date().toLocaleDateString('en-GB')}</span>
         </div>

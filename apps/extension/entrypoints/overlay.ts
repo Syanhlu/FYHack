@@ -19,30 +19,30 @@ export default defineUnlistedScript(() => {
   box.style.cssText =
     'display:flex;flex-direction:column;box-sizing:border-box;width:400px;height:min(720px,calc(100vh - 32px));' +
     'min-width:320px;min-height:260px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);' +
-    'resize:both;overflow:hidden;padding-bottom:10px;background:#faf8f2;border:1px solid #e3e4d8;' +
+    'resize:both;overflow:hidden;padding-bottom:10px;background:#f5f7fc;border:1px solid #dce2ef;' +
     'border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.28);';
 
   const bar = document.createElement('div');
   bar.style.cssText =
     'display:flex;align-items:center;justify-content:space-between;flex:none;height:34px;padding:0 6px 0 12px;' +
-    'cursor:move;user-select:none;touch-action:none;background:#28362e;color:#faf8f2;' +
+    'cursor:move;user-select:none;touch-action:none;background:#182747;color:#f5f7fc;' +
     'font:600 12px system-ui,sans-serif;';
-  bar.textContent = 'Profile Lens';
+  bar.textContent = 'WingMan';
 
   const close = document.createElement('button');
   close.type = 'button';
   close.textContent = '✕';
-  close.setAttribute('aria-label', 'Close Profile Lens');
+  close.setAttribute('aria-label', 'Close WingMan');
   close.style.cssText =
-    'all:unset;cursor:pointer;width:26px;height:26px;text-align:center;border-radius:6px;font:14px system-ui,sans-serif;color:#faf8f2;';
+    'all:unset;cursor:pointer;width:26px;height:26px;text-align:center;border-radius:6px;font:14px system-ui,sans-serif;color:#f5f7fc;';
   close.addEventListener('click', () => host.remove());
   bar.append(close);
 
   const frame = document.createElement('iframe');
-  frame.title = 'Profile Lens';
+  frame.title = 'WingMan';
   frame.allow = 'autoplay'; // romantic results play generated ambient music
   frame.src = chrome.runtime.getURL('/panel.html');
-  frame.style.cssText = 'flex:1;width:100%;min-height:0;border:0;background:#faf8f2;';
+  frame.style.cssText = 'flex:1;width:100%;min-height:0;border:0;background:#f5f7fc;';
 
   // Pointer capture keeps the drag alive when the cursor crosses the iframe.
   let grab: { x: number; y: number } | null = null;

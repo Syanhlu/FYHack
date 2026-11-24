@@ -4,7 +4,7 @@ Status: implemented behind `IMAGE_ANALYSIS_ENABLED=true`. Real logged-in Instagr
 
 ## User flow
 
-Read an Instagram profile, then select **Analyse profile images**. Profile Lens opens a post discovered in that profile's grid, inspects the larger photo, advances through its photo carousel, closes the post, and continues down the grid. No manual downloads or uploads are required. Progress and **Stop photo analysis** remain available in the panel. Keep the Instagram tab/window active and avoid interacting with the page during the run.
+Read an Instagram profile, then select **Analyse profile images**. WingMan opens a post discovered in that profile's grid, inspects the larger photo, advances through its photo carousel, closes the post, and continues down the grid. No manual downloads or uploads are required. Progress and **Stop photo analysis** remain available in the panel. Keep the Instagram tab/window active and avoid interacting with the page during the run.
 
 The cap is **50 unique photos per run**, processed in batches of three. Each post contributes at most 20 slides. Navigation is bounded by 200 opened posts, 250 advances, 60 grid scrolls, and five minutes of active discovery time (excluding provider waits). Three grid scrolls without a new post end discovery. A completed or stopped run closes its owned post and restores the original scroll position when safe; if closing fails, the panel reports the failure. It never navigates back from an unrelated page or closes an unrelated post.
 

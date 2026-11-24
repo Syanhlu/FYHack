@@ -93,7 +93,7 @@ textarea {
 }
 input::placeholder,
 textarea::placeholder {
-  color: #817f76;
+  color: #69758b;
 }
 label {
   display: block;
@@ -144,14 +144,14 @@ blockquote small {
   min-height: 100vh;
   margin: auto;
   padding: 0 23px;
-  --accent: #234b41;
-  --wash: #eef1e9;
-  --soft: #d8e2d4;
+  --accent: #3155c6;
+  --wash: #eaf0ff;
+  --soft: #d8e4ff;
 }
 .theme-warm {
-  --accent: #914e3b;
-  --wash: #f5eae2;
-  --soft: #ecd0be;
+  --accent: #a13e50;
+  --wash: #fff0ed;
+  --soft: #f8d9d2;
 }
 .app-header {
   display: flex;
@@ -164,27 +164,13 @@ blockquote small {
   display: flex;
   align-items: center;
   text-decoration: none;
-  font-size: 21px;
-  letter-spacing: -0.9px;
-  font-weight: 550;
-  gap: 0;
-}
-.brand-serif {
-  font-family: Georgia, serif;
-  font-style: italic;
   font-size: 24px;
-  font-weight: 400;
+  letter-spacing: -1px;
+  font-weight: 750;
+  gap: 10px;
 }
-.brand-mark {
-  width: 31px;
-  height: 31px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: var(--paper);
-  display: grid;
-  place-items: center;
-  margin-right: 8px;
-}
+.brand-tail { color: var(--brand); }
+.brand-mark { width: 38px; height: 38px; }
 .icon-button {
   display: inline-flex;
   align-items: center;
@@ -256,51 +242,32 @@ blockquote small {
   color: var(--muted);
 }
 .welcome-art {
-  height: 260px;
+  height: 235px;
   position: relative;
-  margin: 14px 0 12px;
+  margin: 22px 0;
   overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--wash);
 }
-.art-card {
+.welcome-art > img { width: 100%; height: 100%; object-fit: contain; }
+.flight-label {
   position: absolute;
-  padding: 9px 9px 12px;
-  background: #fff;
-  box-shadow: 0 6px 18px #233a2214;
-  border: 1px solid #e3dfd3;
-  width: 57%;
-  max-width: 230px;
+  top: 17px;
+  left: 19px;
+  font-size: 9px;
+  letter-spacing: .18em;
+  font-weight: 700;
+  color: var(--accent);
 }
-.art-card img {
-  width: 100%;
-  height: 156px;
-  object-fit: cover;
-  display: block;
-}
-.art-card span {
+.flight-caption {
+  position: absolute;
+  bottom: 15px;
+  right: 19px;
   font-family: Georgia, serif;
   font-style: italic;
-  display: block;
-  margin-top: 7px;
-  font-size: 13px;
-}
-.art-one {
-  top: 12px;
-  left: 5px;
-  transform: rotate(-8deg);
-  z-index: 1;
-}
-.art-two {
-  top: 45px;
-  right: 6px;
-  transform: rotate(9deg);
-}
-.art-spark {
-  position: absolute;
-  top: 0;
-  right: 26px;
-  color: var(--accent);
-  font-size: 44px;
-  line-height: 1;
+  font-size: 18px;
+  color: var(--ink);
 }
 .button {
   border-radius: 8px;
@@ -1247,4 +1214,11 @@ blockquote small {
   max-width: 100%;
   height: auto;
   border-radius: 8px;
+}
+
+.button.primary { box-shadow: 0 4px 10px #18274712; }
+.button.primary:hover:not(:disabled) { filter: brightness(1.1); }
+.mode-switch button, .button { transition: background-color .15s, box-shadow .15s; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
 }
